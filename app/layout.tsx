@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import PageTransitionVideo from "@/components/page-transition-video";
 
@@ -23,7 +24,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}
-        <PageTransitionVideo />
+        <Suspense fallback={null}>
+          <PageTransitionVideo />
+        </Suspense>
       </body>
     </html>
   );
