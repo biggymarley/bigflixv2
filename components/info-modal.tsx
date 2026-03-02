@@ -8,8 +8,15 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import type { Movie, MovieDetails, Episode, Video } from "@/lib/types";
-import { backdropUrl, imageUrl } from "@/lib/tmdb";
+import type {
+  Movie,
+  MovieDetails,
+  Episode,
+  Video,
+  PersonCredit,
+  PersonDetails,
+} from "@/lib/types";
+import { backdropUrl, imageUrl, isImageMissing } from "@/lib/tmdb";
 
 interface InfoModalProps {
   movie: Movie | null;
@@ -20,6 +27,8 @@ interface InfoModalProps {
 export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
   const [activeMovie, setActiveMovie] = useState<Movie | null>(movie);
   const [details, setDetails] = useState<MovieDetails | null>(null);
+  const [personDetails, setPersonDetails] = useState<PersonDetails | null>(null);
+  const [personCredits, setPersonCredits] = useState<PersonCredit[]>([]);
   const [trailer, setTrailer] = useState<string | null>(null);
   const [similar, setSimilar] = useState<Movie[]>([]);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -27,7 +36,7 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
   const [loading, setLoading] = useState(false);
   const [muted, setMuted] = useState(true);
 
-  const type = activeMovie?.media_type || "movie";
+  const type = (activeMovie?.media_type || "movie") as "movie" | "tv" | "person";
 
   useEffect(() => {
     setActiveMovie(movie);
@@ -37,11 +46,39 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
   useEffect(() => {
     if (!activeMovie || !open) return;
     setDetails(null);
+    setPersonDetails(null);
+    setPersonCredits([]);
     setTrailer(null);
     setSimilar([]);
     setEpisodes([]);
     setSeason(1);
     setLoading(true);
+
+    if (type === "person") {
+      fetch(`/api/tmdb/person/${activeMovie.id}?append_to_response=combined_credits`)
+        .then((r) => r.json())
+        .then((personData: PersonDetails) => {
+          setPersonDetails(personData);
+
+          const credits = [
+            ...(personData.combined_credits?.cast || []),
+            ...(personData.combined_credits?.crew || []),
+          ].filter((credit) => credit.media_type === "movie" || credit.media_type === "tv");
+
+          const uniqueCredits = Array.from(
+            new Map(
+              credits
+                .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+                .map((credit) => [`${credit.media_type}-${credit.id}`, credit])
+            ).values()
+          );
+
+          setPersonCredits(uniqueCredits.slice(0, 24));
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+      return;
+    }
 
     const base = type === "tv" ? "tv" : "movie";
 
@@ -72,6 +109,123 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
   }, [activeMovie, type, season, open]);
 
   if (!activeMovie) return null;
+
+  if (type === "person") {
+    const personName = personDetails?.name || activeMovie.name || "Unknown person";
+    const personBio =
+      personDetails?.biography?.trim() ||
+      "No biography is available for this person yet.";
+    const personImagePath =
+      personDetails?.profile_path || activeMovie.profile_path || activeMovie.poster_path;
+    const missingPersonImage = isImageMissing(personImagePath);
+
+    return (
+      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent
+          showCloseButton={false}
+          className="max-h-[90vh] max-w-3xl lg:max-w-4xl xl:max-w-5xl overflow-y-auto border-0 bg-[#181818] p-0 text-white scrollbar-hide"
+        >
+          <DialogTitle className="sr-only">{personName}</DialogTitle>
+
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-3 top-3 z-20 rounded-full bg-[#181818]/80 text-white hover:bg-[#181818]"
+              onClick={onClose}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+
+            <div className="relative aspect-video w-full overflow-hidden">
+              {missingPersonImage ? (
+                <div className="absolute inset-0 bg-[url('/bigflix.png')] bg-repeat bg-size-[120px_auto]" />
+              ) : (
+                <Image
+                  src={imageUrl(personImagePath)}
+                  alt={personName}
+                  fill
+                  className="object-cover"
+                />
+              )}
+              <div className="absolute inset-0 bg-linear-to-t from-[#181818] via-[#181818]/45 to-black/10" />
+              {missingPersonImage && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/45 px-3 text-center text-sm font-semibold text-white">
+                  Image not available
+                </div>
+              )}
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <h2 className="text-3xl font-extrabold drop-shadow-lg">{personName}</h2>
+                <p className="mt-1 text-sm text-white/75">
+                  {personDetails?.known_for_department ||
+                    activeMovie.known_for_department ||
+                    "Performer"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-5 px-6 pb-8 pt-5">
+            {loading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-56" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-2 text-sm text-white/80 sm:grid-cols-2">
+                  {personDetails?.birthday && <p>Born: {personDetails.birthday}</p>}
+                  {personDetails?.place_of_birth && (
+                    <p>From: {personDetails.place_of_birth}</p>
+                  )}
+                  {personDetails?.deathday && <p>Died: {personDetails.deathday}</p>}
+                  {personDetails?.also_known_as?.[0] && (
+                    <p>Also known as: {personDetails.also_known_as[0]}</p>
+                  )}
+                </div>
+
+                <p className="text-sm leading-relaxed text-white/80">{personBio}</p>
+
+                <div className="space-y-3 pt-1">
+                  <h3 className="text-xl font-bold text-white">Known for</h3>
+                  {personCredits.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+                      {personCredits.map((credit) => (
+                        <PersonCreditCard
+                          key={`${credit.media_type}-${credit.id}`}
+                          credit={credit}
+                          onSelect={(selected) =>
+                            setActiveMovie({
+                              id: selected.id,
+                              media_type: selected.media_type,
+                              title: selected.title,
+                              name: selected.name,
+                              overview: selected.overview || "",
+                              poster_path: selected.poster_path,
+                              backdrop_path: selected.backdrop_path || null,
+                              vote_average: selected.vote_average || 0,
+                              vote_count: 0,
+                              popularity: selected.popularity || 0,
+                              release_date: selected.release_date,
+                              first_air_date: selected.first_air_date,
+                            })
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-white/60">
+                      No movie or TV credits were found.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const title =
     details?.title || details?.name || activeMovie.title || activeMovie.name || "Untitled";
@@ -251,13 +405,22 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
                                 {ep.episode_number}
                               </span>
                               <div className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-md">
-                                <Image
-                                  src={imageUrl(ep.still_path, "w300")}
-                                  alt={ep.name}
-                                  fill
-                                  className="object-cover"
-                                  sizes="128px"
-                                />
+                                {isImageMissing(ep.still_path) ? (
+                                  <div className="absolute inset-0 bg-[url('/bigflix.png')] bg-repeat bg-size-[80px_auto]" />
+                                ) : (
+                                  <Image
+                                    src={imageUrl(ep.still_path, "w300")}
+                                    alt={ep.name}
+                                    fill
+                                    className="object-cover"
+                                    sizes="128px"
+                                  />
+                                )}
+                                {isImageMissing(ep.still_path) && (
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-2 text-center text-[10px] font-semibold text-white">
+                                    Image not available
+                                  </div>
+                                )}
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100 hover:opacity-100">
                                   <Play className="h-8 w-8 fill-white text-white" />
                                 </div>
@@ -349,6 +512,7 @@ function SimilarCard({
   onSelect: (movie: Movie) => void;
 }) {
   const title = movie.title || movie.name || "Untitled";
+  const missingPoster = isImageMissing(movie.poster_path);
 
   return (
     <button
@@ -357,13 +521,67 @@ function SimilarCard({
       className="group block overflow-hidden rounded-md transition-transform duration-200 hover:scale-[1.03]"
     >
       <div className="relative aspect-2/3 w-full">
-        <Image
-          src={imageUrl(movie.poster_path)}
-          alt={title}
-          fill
-          className="object-cover transition-opacity group-hover:opacity-90"
-          sizes="150px"
-        />
+        {missingPoster ? (
+          <div className="absolute inset-0 bg-[url('/bigflix.png')] bg-repeat bg-size-[120px_auto]" />
+        ) : (
+          <Image
+            src={imageUrl(movie.poster_path)}
+            alt={title}
+            fill
+            className="object-cover transition-opacity group-hover:opacity-90"
+            sizes="150px"
+          />
+        )}
+        {missingPoster && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-2 text-center text-[10px] font-semibold text-white">
+            Image not available
+          </div>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function PersonCreditCard({
+  credit,
+  onSelect,
+}: {
+  credit: PersonCredit;
+  onSelect: (credit: PersonCredit) => void;
+}) {
+  const title = credit.title || credit.name || "Untitled";
+  const subtitle = credit.character || credit.job;
+  const missingPoster = isImageMissing(credit.poster_path);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(credit)}
+      className="group block overflow-hidden rounded-md text-left transition-transform duration-200 hover:scale-[1.03]"
+    >
+      <div className="relative aspect-2/3 w-full">
+        {missingPoster ? (
+          <div className="absolute inset-0 bg-[url('/bigflix.png')] bg-repeat bg-size-[120px_auto]" />
+        ) : (
+          <Image
+            src={imageUrl(credit.poster_path)}
+            alt={title}
+            fill
+            className="object-cover transition-opacity group-hover:opacity-90"
+            sizes="150px"
+          />
+        )}
+        {missingPoster && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-2 text-center text-[10px] font-semibold text-white">
+            Image not available
+          </div>
+        )}
+      </div>
+      <div className="space-y-0.5 px-1 py-2">
+        <p className="line-clamp-1 text-xs font-semibold text-white">{title}</p>
+        <p className="line-clamp-1 text-[11px] text-white/60">
+          {subtitle || credit.media_type.toUpperCase()}
+        </p>
       </div>
     </button>
   );

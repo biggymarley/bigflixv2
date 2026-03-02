@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import PageTransitionVideo from "@/components/page-transition-video";
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -22,6 +23,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}
+        <PageTransitionVideo />
       </body>
     </html>
   );

@@ -73,6 +73,39 @@ export interface Video {
   type: string;
 }
 
+export interface PersonCredit {
+  id: number;
+  media_type: "movie" | "tv";
+  title?: string;
+  name?: string;
+  overview?: string;
+  poster_path: string | null;
+  backdrop_path?: string | null;
+  release_date?: string;
+  first_air_date?: string;
+  vote_average?: number;
+  popularity?: number;
+  character?: string;
+  job?: string;
+}
+
+export interface PersonDetails {
+  id: number;
+  name: string;
+  biography: string;
+  profile_path: string | null;
+  known_for_department?: string;
+  birthday?: string | null;
+  deathday?: string | null;
+  place_of_birth?: string | null;
+  also_known_as?: string[];
+  popularity?: number;
+  combined_credits?: {
+    cast: PersonCredit[];
+    crew: PersonCredit[];
+  };
+}
+
 export interface SliderMode {
   id: string;
   label: string;

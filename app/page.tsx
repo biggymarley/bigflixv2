@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Movie } from "@/lib/types";
-import { imageUrl } from "@/lib/tmdb";
+import { imageUrl, isImageMissing } from "@/lib/tmdb";
 import SpotlightCard from "@/components/SpotlightCard";
 
 export default function Home() {
@@ -367,6 +367,7 @@ function TrendingSlider({
           <div className="flex gap-4 md:gap-8">
             {trending.map((movie, i) => {
               const title = movie.title || movie.name || "Untitled";
+              const missingPoster = isImageMissing(movie.poster_path);
               return (
                 <button
                   key={movie.id}
@@ -380,13 +381,22 @@ function TrendingSlider({
                   className="group/card relative shrink-0 basis-[30%] sm:basis-[22%] md:basis-[18%] lg:basis-[15%]"
                 >
                   <div className="relative aspect-2/3 w-full overflow-hidden rounded-md transition-transform duration-300 group-hover/card:scale-105">
-                    <Image
-                      src={imageUrl(movie.poster_path)}
-                      alt={title}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 30vw, (max-width: 1024px) 22vw, 15vw"
-                    />
+                    {missingPoster ? (
+                      <div className="absolute inset-0 bg-[url('/bigflix.png')] bg-repeat bg-size-[120px_auto]" />
+                    ) : (
+                      <Image
+                        src={imageUrl(movie.poster_path)}
+                        alt={title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 30vw, (max-width: 1024px) 22vw, 15vw"
+                      />
+                    )}
+                    {missingPoster && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-2 text-center text-xs font-semibold text-white">
+                        Image not available
+                      </div>
+                    )}
                   </div>
                   <span
                     className="absolute -bottom-2 -left-3 select-none text-[4rem]  leading-none text-black md:-left-4 md:text-[5.5rem] font-extrabold"

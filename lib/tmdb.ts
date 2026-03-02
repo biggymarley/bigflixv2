@@ -5,8 +5,12 @@ const TMDB_TOKEN = process.env.TMDB_TOKEN!;
 export const IMAGES_BASE_URL = "https://image.tmdb.org/t/p";
 
 export function imageUrl(path: string | null, size = "w500") {
-  if (!path) return "/placeholder.jpg";
+  if (!path) return "/bigflix.png";
   return `${IMAGES_BASE_URL}/${size}${path}`;
+}
+
+export function isImageMissing(path: string | null | undefined) {
+  return !path;
 }
 
 export function backdropUrl(path: string | null) {

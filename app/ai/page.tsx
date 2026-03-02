@@ -14,7 +14,7 @@ import FuzzyText from "@/components/FuzzyText";
 import { Button } from "@/components/ui/button";
 import { useWatchLater } from "@/hooks/use-watch-later";
 import type { Movie } from "@/lib/types";
-import { imageUrl } from "@/lib/tmdb";
+import { imageUrl, isImageMissing } from "@/lib/tmdb";
 
 type Question = {
   id: "mood" | "pace" | "format" | "genre";
@@ -285,12 +285,21 @@ export default function AiPage() {
                         className="overflow-hidden rounded-lg border border-white/10 bg-black/50"
                       >
                         <div className="group/poster relative">
-                          <img
-                            src={imageUrl(item.poster_path)}
-                            alt={item.title}
-                            className="aspect-2/3 w-full object-cover"
-                            loading="lazy"
-                          />
+                          {isImageMissing(item.poster_path) ? (
+                            <div className="aspect-2/3 w-full bg-[url('/bigflix.png')] bg-repeat bg-size-[120px_auto]" />
+                          ) : (
+                            <img
+                              src={imageUrl(item.poster_path)}
+                              alt={item.title}
+                              className="aspect-2/3 w-full object-cover"
+                              loading="lazy"
+                            />
+                          )}
+                          {isImageMissing(item.poster_path) && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-3 text-center text-xs font-semibold text-white">
+                              Image not available
+                            </div>
+                          )}
                           <button
                             type="button"
                             onClick={() => refindRecommendation(index)}
