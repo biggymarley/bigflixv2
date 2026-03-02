@@ -120,7 +120,7 @@ export default function Home() {
             </h1>
 
             <p className="text-lg font-medium text-white/80 md:text-xl">
-              Watch anywhere. Cancel anytime.
+              Watch anywhere. for free.
             </p>
 
             <p className="text-sm text-white/60 md:text-base">
@@ -402,6 +402,25 @@ export default function Home() {
         <p className="text-sm text-white/40">
           built by Biggy using 🌿
         </p>
+        <div className="mt-3 flex items-center justify-center gap-4 text-sm">
+          <a
+            href="https://github.com/biggymarley"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white/60 transition-colors hover:text-white"
+          >
+            GitHub
+          </a>
+          <span className="text-white/20">|</span>
+          <a
+            href="https://www.instagram.com/bbigggyy/?hl=en"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white/60 transition-colors hover:text-white"
+          >
+            Instagram
+          </a>
+        </div>
       </footer>
 
       <InfoModal

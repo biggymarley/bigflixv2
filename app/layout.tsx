@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
 import PageTransitionVideo from "@/components/page-transition-video";
+import RouteTracker from "@/components/route-tracker";
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -25,6 +26,7 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}
         <Suspense fallback={null}>
+          <RouteTracker />
           <PageTransitionVideo />
         </Suspense>
       </body>

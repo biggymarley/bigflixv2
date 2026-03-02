@@ -73,7 +73,7 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
             ).values()
           );
 
-          setPersonCredits(uniqueCredits.slice(0, 24));
+          setPersonCredits(uniqueCredits);
         })
         .catch(() => {})
         .finally(() => setLoading(false));

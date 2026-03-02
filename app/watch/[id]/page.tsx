@@ -33,8 +33,13 @@ export default function WatchPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const returnTo = useRef("/");
   const { addItem, removeItem, isInList } = useWatchLater();
   const saved = isInList(Number(id));
+
+  useEffect(() => {
+    returnTo.current = sessionStorage.getItem("preWatchPath") || "/";
+  }, []);
 
   useEffect(() => {
     const endpoint = type === "tv" ? `tv/${id}` : `movie/${id}`;
@@ -101,7 +106,7 @@ export default function WatchPage() {
             variant="ghost"
             size="icon"
             className="text-white hover:bg-white/10"
-            onClick={() => router.back()}
+            onClick={() => router.push(returnTo.current)}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
