@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import PageTransitionVideo from "@/components/page-transition-video";
 import RouteTracker from "@/components/route-tracker";
-
+import { Analytics } from "@vercel/analytics/next"
 const inter = Inter({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -29,6 +29,7 @@ export default function RootLayout({
           <RouteTracker />
           <PageTransitionVideo />
         </Suspense>
+        <Analytics />
       </body>
     </html>
   );
