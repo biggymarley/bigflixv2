@@ -15,9 +15,13 @@ import {
   Sparkles,
   BrainCircuit,
   ListChecks,
+  ShieldCheck,
+  Download,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import InfoModal from "@/components/info-modal";
 import type { Movie } from "@/lib/types";
 import { imageUrl, isImageMissing } from "@/lib/tmdb";
 import SpotlightCard from "@/components/SpotlightCard";
@@ -27,6 +31,8 @@ export default function Home() {
   const [error, setError] = useState("");
   const [trendingMovies, setTrendingMovies] = useState<Movie[]>([]);
   const [trendingTv, setTrendingTv] = useState<Movie[]>([]);
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -57,6 +63,11 @@ export default function Home() {
     if (e.key === "Enter") handleSearch();
   };
 
+  const handleTrendingInfoClick = (movie: Movie) => {
+    setSelectedMovie(movie);
+    setInfoModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-black">
       {/* ── Hero Section ── */}
@@ -83,7 +94,7 @@ export default function Home() {
             <Button
               variant="outline"
               size="sm"
-              className="border-white/30 bg-transparent text-white hover:bg-white/10"
+              className="border-white/80 bg-transparent text-white hover:bg-white/10"
               onClick={() => router.push("/discover/movies")}
             >
               Movies
@@ -91,7 +102,7 @@ export default function Home() {
             <Button
               variant="outline"
               size="sm"
-              className="border-white/30 bg-transparent text-white hover:bg-white/10"
+              className="border-white/80 bg-transparent text-white hover:bg-white/10"
               onClick={() => router.push("/discover/series")}
             >
               TV Shows
@@ -158,8 +169,25 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── AI Pick Intro ── */}
-      <section className="bg-black px-6 py-16 md:px-12">
+     
+
+      {/* ── Trending Now ── */}
+      <div className="space-y-4">
+        <TrendingSlider
+          title="Trending Movies"
+          mediaType="movie"
+          trending={trendingMovies}
+          onInfoClick={handleTrendingInfoClick}
+        />
+        <TrendingSlider
+          title="Trending TV Shows"
+          mediaType="tv"
+          trending={trendingTv}
+          onInfoClick={handleTrendingInfoClick}
+        />
+      </div>
+ {/* ── AI Pick Intro ── */}
+ <section className="bg-black px-6 py-16 md:px-12">
         <div className="mx-auto grid max-w-6xl items-stretch gap-5 lg:grid-cols-2">
           <SpotlightCard
             className="border-white/15 bg-linear-to-br from-[#111827] to-[#0f172a]"
@@ -225,27 +253,95 @@ export default function Home() {
           </div>
         </div>
       </section>
+            {/* ── Ad-Free Guide ── */}
+            <section className="bg-black px-6 py-16 md:px-12">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-10 text-center">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              Best Experience
+            </div>
+            <h2 className="text-xl font-bold text-white md:text-2xl">
+              Watch completely ad-free
+            </h2>
+            <p className="mt-2 text-sm text-white/50">
+              BigFlix is free — but the player embeds may show ads. Kill them in 60 seconds.
+            </p>
+          </div>
 
-      {/* ── Trending Now ── */}
-      <div className="space-y-4">
-        <TrendingSlider
-          title="Trending Movies"
-          mediaType="movie"
-          trending={trendingMovies}
-        />
-        <TrendingSlider
-          title="Trending TV Shows"
-          mediaType="tv"
-          trending={trendingTv}
-        />
-      </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            {/* Brave */}
+            <SpotlightCard
+              className="border-white/10 bg-linear-to-br from-[#1a1210] to-[#1a0f0a]"
+              spotlightColor="rgba(251, 115, 22, 0.22)"
+            >
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/20">
+                    <Download className="h-5 w-5 text-orange-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white">Option 1 — Brave Browser</h3>
+                    <p className="text-xs text-white/50">Built-in ad & tracker blocker, zero setup</p>
+                  </div>
+                </div>
+                <ol className="space-y-2 text-sm text-white/70">
+                  <li className="flex gap-2"><span className="shrink-0 font-bold text-orange-400">1.</span>Go to <span className="font-semibold text-white">brave.com</span> and download Brave Browser.</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-bold text-orange-400">2.</span>Install and open it — ads are already blocked by default.</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-bold text-orange-400">3.</span>Head back to BigFlix and enjoy a clean, uninterrupted experience.</li>
+                </ol>
+                <a
+                  href="https://brave.com/download"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex w-fit items-center gap-2 rounded-md bg-orange-500/20 px-4 py-2 text-sm font-semibold text-orange-300 transition-colors hover:bg-orange-500/30"
+                >
+                  Download Brave
+                  <ChevronRight className="h-4 w-4" />
+                </a>
+              </div>
+            </SpotlightCard>
 
+            {/* uBlock Origin */}
+            <SpotlightCard
+              className="border-white/10 bg-linear-to-br from-[#0d1a12] to-[#0a1a10]"
+              spotlightColor="rgba(34, 197, 94, 0.2)"
+            >
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-500/20">
+                    <Zap className="h-5 w-5 text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white">Option 2 — uBlock Origin</h3>
+                    <p className="text-xs text-white/50">Lightweight extension, works on any browser</p>
+                  </div>
+                </div>
+                <ol className="space-y-2 text-sm text-white/70">
+                  <li className="flex gap-2"><span className="shrink-0 font-bold text-green-400">1.</span>Open Chrome, Firefox, or Edge and go to your browser&apos;s extension store.</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-bold text-green-400">2.</span>Search for <span className="font-semibold text-white">uBlock Origin</span> and click <span className="font-semibold text-white">Add to browser</span>.</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-bold text-green-400">3.</span>Done. Every ad across BigFlix and the rest of the web is now blocked.</li>
+                </ol>
+                <a
+                  href="https://ublockorigin.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex w-fit items-center gap-2 rounded-md bg-green-500/20 px-4 py-2 text-sm font-semibold text-green-300 transition-colors hover:bg-green-500/30"
+                >
+                  Get uBlock Origin
+                  <ChevronRight className="h-4 w-4" />
+                </a>
+              </div>
+            </SpotlightCard>
+          </div>
+        </div>
+      </section>
       {/* ── More Reasons to Join ── */}
-      <section className="bg-black px-6 py-16 md:px-12">
+      {/* <section className="bg-black px-6 py-16 md:px-12">
         <h2 className="mb-10 text-center text-xl font-bold text-white md:text-2xl">
           More Reasons to Join
         </h2>
-        <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <ReasonCard
             icon={<Clapperboard className="h-8 w-8 text-primary" />}
             title="Bigger library than Netflix"
@@ -267,7 +363,9 @@ export default function Home() {
             description="I do not earn anything from this website, so you might as well enjoy it with ad blocker on."
           />
         </div>
-      </section>
+      </section> */}
+
+
 
       {/* ── Divider ── */}
       <div className="h-1 bg-[#232323]" />
@@ -301,8 +399,16 @@ export default function Home() {
 
       {/* ── Footer ── */}
       <footer className="border-t border-white/10 bg-black px-6 py-8 text-center">
-        <p className="text-sm text-white/40">BigFlix &mdash; Streaming Demo</p>
+        <p className="text-sm text-white/40">
+          built by Biggy using 🌿
+        </p>
       </footer>
+
+      <InfoModal
+        movie={selectedMovie}
+        open={infoModalOpen}
+        onClose={() => setInfoModalOpen(false)}
+      />
     </div>
   );
 }
@@ -311,12 +417,13 @@ function TrendingSlider({
   title,
   mediaType,
   trending,
+  onInfoClick,
 }: {
   title: string;
   mediaType: "movie" | "tv";
   trending: Movie[];
+  onInfoClick: (movie: Movie) => void;
 }) {
-  const router = useRouter();
   const seeMoreHref = mediaType === "movie" ? "/discover/movies" : "/discover/series";
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
@@ -371,13 +478,7 @@ function TrendingSlider({
               return (
                 <button
                   key={movie.id}
-                  onClick={() =>
-                    router.push(
-                      mediaType === "tv"
-                        ? `/watch/${movie.id}?type=tv`
-                        : `/watch/${movie.id}`
-                    )
-                  }
+                  onClick={() => onInfoClick({ ...movie, media_type: mediaType })}
                   className="group/card relative shrink-0 basis-[30%] sm:basis-[22%] md:basis-[18%] lg:basis-[15%]"
                 >
                   <div className="relative aspect-2/3 w-full overflow-hidden rounded-md transition-transform duration-300 group-hover/card:scale-105">

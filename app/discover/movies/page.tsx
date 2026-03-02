@@ -48,7 +48,7 @@ export default async function DiscoverMoviesPage() {
     <div className="min-h-screen bg-[#0a0a0a]">
       <Header />
       <HeroSection movie={featuredMovie} mediaType="movie" trailerKey={trailerKey} />
-      <div className="mx-auto max-w-7xl px-4 pt-8">
+      <div className="mx-auto  px-4 pt-8">
         <DiscoverContent modes={allModes} />
       </div>
     </div>

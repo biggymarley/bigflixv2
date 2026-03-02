@@ -20,7 +20,16 @@ export default function PageTransitionVideo() {
   useEffect(() => {
     if (previousRouteRef.current === routeKey) return;
 
+    const previousPathname = previousRouteRef.current.split("?")[0];
+    const isEnteringWatchPage =
+      pathname.startsWith("/watch/") && !previousPathname.startsWith("/watch/");
+
     previousRouteRef.current = routeKey;
+    if (!isEnteringWatchPage) {
+      setIsVisible(false);
+      return;
+    }
+
     setIsVisible(true);
 
     const timer = window.setTimeout(() => {
