@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Play, Info, Star } from "lucide-react";
+import { Play, Info, Star, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Movie } from "@/lib/types";
 import { backdropUrl } from "@/lib/tmdb";
@@ -12,13 +12,17 @@ interface HeroSectionProps {
   movie: Movie;
   onInfoClick?: (movie: Movie) => void;
   mediaType?: "movie" | "tv";
+  trailerKey?: string | null;
 }
 
 export default function HeroSection({
   movie,
   onInfoClick,
   mediaType = "movie",
+  trailerKey,
 }: HeroSectionProps) {
+  const [muted, setMuted] = useState(true);
+
   const title = movie.title || movie.name || "Untitled";
   const year =
     (movie.release_date || movie.first_air_date)?.split("-")[0] || "";
@@ -29,17 +33,27 @@ export default function HeroSection({
 
   return (
     <div className="relative h-[70vh] w-full overflow-hidden">
-      <Image
-        src={backdropUrl(movie.backdrop_path)}
-        alt={title}
-        fill
-        className="object-cover"
-        priority
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/40 to-black/20" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-transparent to-transparent" />
+      {trailerKey ? (
+        <iframe
+          src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=${muted ? 1 : 0}&controls=0&modestbranding=1&rel=0&loop=1&playlist=${trailerKey}&showinfo=0`}
+          className="pointer-events-none absolute inset-0 h-[120%] w-[120%] -translate-x-[8.3%] -translate-y-[8.3%]"
+          allow="autoplay; encrypted-media"
+          allowFullScreen
+        />
+      ) : (
+        <Image
+          src={backdropUrl(movie.backdrop_path)}
+          alt={title}
+          fill
+          className="object-cover"
+          priority
+        />
+      )}
 
-      <div className="absolute bottom-16 left-0 max-w-xl space-y-4 px-6 md:bottom-24 md:px-12">
+      <div className="absolute inset-0 bg-linear-to-t from-[#0a0a0a] via-black/40 to-black/20" />
+      <div className="absolute inset-0 bg-linear-to-r from-black/80 via-transparent to-transparent" />
+
+      <div className="absolute bottom-16 left-0 z-10 max-w-xl space-y-4 px-6 md:bottom-24 md:px-12">
         <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-lg md:text-5xl">
           {title}
         </h1>
@@ -78,6 +92,21 @@ export default function HeroSection({
           )}
         </div>
       </div>
+
+      {trailerKey && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute bottom-20 right-6 z-10 rounded-full border border-white/40 text-white hover:bg-white/10 md:bottom-28 md:right-12"
+          onClick={() => setMuted((m) => !m)}
+        >
+          {muted ? (
+            <VolumeX className="h-5 w-5" />
+          ) : (
+            <Volume2 className="h-5 w-5" />
+          )}
+        </Button>
+      )}
     </div>
   );
 }

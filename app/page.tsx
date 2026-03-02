@@ -2,32 +2,46 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useEmblaCarousel from "embla-carousel-react";
 import {
   ChevronRight,
   ChevronLeft,
-  Tv,
-  Download,
-  Monitor,
-  Users,
+  Clapperboard,
+  Globe2,
+  BadgeDollarSign,
+  ShieldBan,
+  Sparkles,
+  BrainCircuit,
+  ListChecks,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Movie } from "@/lib/types";
 import { imageUrl } from "@/lib/tmdb";
+import SpotlightCard from "@/components/SpotlightCard";
 
 export default function Home() {
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
-  const [trending, setTrending] = useState<Movie[]>([]);
+  const [trendingMovies, setTrendingMovies] = useState<Movie[]>([]);
+  const [trendingTv, setTrendingTv] = useState<Movie[]>([]);
   const router = useRouter();
 
   useEffect(() => {
-    fetch("/api/tmdb/trending/all/week?page=1")
-      .then((r) => r.json())
-      .then((d) => setTrending((d.results || []).slice(0, 10)))
-      .catch(() => {});
+    Promise.all([
+      fetch("/api/tmdb/trending/movie/week?page=1").then((r) => r.json()),
+      fetch("/api/tmdb/trending/tv/week?page=1").then((r) => r.json()),
+    ])
+      .then(([moviesData, tvData]) => {
+        setTrendingMovies((moviesData.results || []).slice(0, 10));
+        setTrendingTv((tvData.results || []).slice(0, 10));
+      })
+      .catch(() => {
+        setTrendingMovies([]);
+        setTrendingTv([]);
+      });
   }, []);
 
   const handleSearch = () => {
@@ -46,7 +60,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-black">
       {/* ── Hero Section ── */}
-      <div className="relative flex min-h-[40rem] flex-col">
+      <div className="relative flex min-h-160 flex-col">
         <Image
           src="/bg.jpg"
           alt="Background"
@@ -54,7 +68,7 @@ export default function Home() {
           className="object-cover"
           priority
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black" />
+        <div className="absolute inset-0 bg-linear-to-b from-black/70 via-black/50 to-black" />
 
         {/* Top bar */}
         <div className="relative z-10 flex items-center justify-between px-6 py-5 md:px-12">
@@ -130,25 +144,101 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Arc curve at the bottom */}
-        <div className="absolute -bottom-1 left-0 right-0 z-10">
-          <svg
-            viewBox="0 0 1440 80"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-full"
-            preserveAspectRatio="none"
-          >
-            <path d="M0 80V30C360 0 1080 0 1440 30V80H0Z" fill="black" />
-          </svg>
+        {/* Arc glow at the bottom */}
+        <div className="pointer-events-none absolute -bottom-1 left-0 right-0 z-10 h-22 overflow-hidden">
+          <div
+            className="absolute left-[-50%] top-0 h-full w-[200%]"
+            style={{
+              borderTopLeftRadius: "50% 100%",
+              borderTopRightRadius: "50% 100%",
+              background:
+                "radial-gradient(50% 500% at 50% -420%, rgba(229, 9, 127, 0.35) 45%, rgba(64, 97, 231, 0.35) 70%, rgba(0, 0, 0, 0.08) 100%), black",
+            }}
+          />
         </div>
       </div>
 
-      {/* ── Trending Now ── */}
-      <TrendingSlider trending={trending} />
+      {/* ── AI Pick Intro ── */}
+      <section className="bg-black px-6 py-16 md:px-12">
+        <div className="mx-auto grid max-w-6xl items-stretch gap-5 lg:grid-cols-2">
+          <SpotlightCard
+            className="border-white/15 bg-linear-to-br from-[#111827] to-[#0f172a]"
+            spotlightColor="rgba(229, 9, 127, 0.28)"
+          >
+            <div className="space-y-5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80">
+                <Sparkles className="h-4 w-4 text-primary" />
+                AI Movie Match
+              </div>
 
-      {/* ── Divider ── */}
-      <div className="h-2 bg-[#232323]" />
+              <h2 className="text-2xl font-extrabold tracking-tight text-white md:text-3xl">
+                Not sure what to watch tonight?
+              </h2>
+
+              <p className="text-sm leading-relaxed text-white/70">
+                I built this service because I used to spend way too much time
+                searching for something to watch. You answer a few simple
+                questions, and the AI gives you 3 movie or TV picks that match
+                your mood. Less time searching, more time watching.
+              </p>
+
+              <Button
+                onClick={() => router.push("/ai")}
+                className="mt-2 inline-flex w-fit items-center gap-2"
+              >
+                Start AI recommendations
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </SpotlightCard>
+
+          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+            <SpotlightCard
+              className="border-white/10 bg-[#111111]"
+              spotlightColor="rgba(64, 97, 231, 0.25)"
+            >
+              <div className="space-y-3">
+                <BrainCircuit className="h-6 w-6 text-primary" />
+                <h3 className="text-lg font-semibold text-white">
+                  Understand your taste
+                </h3>
+                <p className="text-sm text-white/60">
+                  Mood, pace, language, and genre preferences in one quick flow.
+                </p>
+              </div>
+            </SpotlightCard>
+
+            <SpotlightCard
+              className="border-white/10 bg-[#111111]"
+              spotlightColor="rgba(229, 9, 127, 0.22)"
+            >
+              <div className="space-y-3">
+                <ListChecks className="h-6 w-6 text-primary" />
+                <h3 className="text-lg font-semibold text-white">
+                  Smart 3-title shortlist
+                </h3>
+                <p className="text-sm text-white/60">
+                  The AI returns 3 focused picks instead of overwhelming lists.
+                </p>
+              </div>
+            </SpotlightCard>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Trending Now ── */}
+      <div className="space-y-4">
+        <TrendingSlider
+          title="Trending Movies"
+          mediaType="movie"
+          trending={trendingMovies}
+        />
+        <TrendingSlider
+          title="Trending TV Shows"
+          mediaType="tv"
+          trending={trendingTv}
+        />
+      </div>
 
       {/* ── More Reasons to Join ── */}
       <section className="bg-black px-6 py-16 md:px-12">
@@ -157,30 +247,30 @@ export default function Home() {
         </h2>
         <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <ReasonCard
-            icon={<Tv className="h-8 w-8 text-primary" />}
-            title="Enjoy on your TV"
-            description="Watch on Smart TVs, PlayStation, Xbox, Chromecast, Apple TV, Blu-ray players, and more."
+            icon={<Clapperboard className="h-8 w-8 text-primary" />}
+            title="Bigger library than Netflix"
+            description="More movies and TV shows than Netflix."
           />
           <ReasonCard
-            icon={<Download className="h-8 w-8 text-primary" />}
-            title="Download your shows to watch offline"
-            description="Save your favorites easily and always have something to watch."
+            icon={<Globe2 className="h-8 w-8 text-primary" />}
+            title="Region locks? Nobody cares"
+            description="Nobody cares about your region here. You can watch Borat in Kazakhstan too."
           />
           <ReasonCard
-            icon={<Monitor className="h-8 w-8 text-primary" />}
-            title="Watch everywhere"
-            description="Stream unlimited movies and TV shows on your phone, tablet, laptop, and TV."
+            icon={<BadgeDollarSign className="h-8 w-8 text-primary" />}
+            title="Free forever"
+            description="This site will always stay free. Zero subscriptions, zero drama, maximum vibes."
           />
           <ReasonCard
-            icon={<Users className="h-8 w-8 text-primary" />}
-            title="Create profiles for kids"
-            description="Send kids on adventures with their favorite characters in a space made just for them."
+            icon={<ShieldBan className="h-8 w-8 text-primary" />}
+            title="Use an ad blocker SERIOUSLY"
+            description="I do not earn anything from this website, so you might as well enjoy it with ad blocker on."
           />
         </div>
       </section>
 
       {/* ── Divider ── */}
-      <div className="h-2 bg-[#232323]" />
+      <div className="h-1 bg-[#232323]" />
 
       {/* ── Bottom CTA ── */}
       <section className="bg-black px-6 py-16 text-center">
@@ -217,8 +307,17 @@ export default function Home() {
   );
 }
 
-function TrendingSlider({ trending }: { trending: Movie[] }) {
+function TrendingSlider({
+  title,
+  mediaType,
+  trending,
+}: {
+  title: string;
+  mediaType: "movie" | "tv";
+  trending: Movie[];
+}) {
   const router = useRouter();
+  const seeMoreHref = mediaType === "movie" ? "/discover/movies" : "/discover/series";
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     slidesToScroll: 2,
@@ -243,31 +342,37 @@ function TrendingSlider({ trending }: { trending: Movie[] }) {
 
   return (
     <section className="relative z-10 bg-black px-6 pb-16 md:px-12">
-      <h2 className="mb-6 text-xl font-bold text-white md:text-2xl">
-        Trending Now
-      </h2>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h2 className="text-xl font-bold text-white md:text-2xl">{title}</h2>
+        <Link
+          href={seeMoreHref}
+          className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition-all hover:gap-1.5 hover:text-primary/90"
+        >
+          See more
+          <ChevronRight className="h-4 w-4" />
+        </Link>
+      </div>
 
       <div className="group relative">
         {canPrev && (
           <button
             onClick={() => emblaApi?.scrollPrev()}
-            className="absolute -left-2 top-0 z-20 flex h-full items-center rounded-r-lg bg-[#141414]/80 px-3 opacity-0 transition-opacity hover:bg-[#141414] group-hover:opacity-100"
+            className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-md bg-[#141414]/85 px-2.5 py-3 opacity-0 transition-opacity hover:bg-[#141414] group-hover:opacity-100"
           >
             <ChevronLeft className="h-8 w-8 text-white" />
           </button>
         )}
 
-        <div ref={emblaRef} className="overflow-hidden px-8">
+        <div ref={emblaRef} className="overflow-hidden px-12 md:px-14">
           <div className="flex gap-4 md:gap-8">
             {trending.map((movie, i) => {
               const title = movie.title || movie.name || "Untitled";
-              const type = movie.media_type === "tv" ? "tv" : "movie";
               return (
                 <button
                   key={movie.id}
                   onClick={() =>
                     router.push(
-                      type === "tv"
+                      mediaType === "tv"
                         ? `/watch/${movie.id}?type=tv`
                         : `/watch/${movie.id}`
                     )
@@ -298,7 +403,7 @@ function TrendingSlider({ trending }: { trending: Movie[] }) {
         {canNext && (
           <button
             onClick={() => emblaApi?.scrollNext()}
-            className="absolute -right-2 top-0 z-20 flex h-full items-center rounded-l-lg bg-[#141414]/80 px-3 opacity-0 transition-opacity hover:bg-[#141414] group-hover:opacity-100"
+            className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-md bg-[#141414]/85 px-2.5 py-3 opacity-0 transition-opacity hover:bg-[#141414] group-hover:opacity-100"
           >
             <ChevronRight className="h-8 w-8 text-white" />
           </button>
@@ -318,7 +423,7 @@ function ReasonCard({
   description: string;
 }) {
   return (
-    <div className="flex flex-col gap-4 rounded-xl bg-gradient-to-br from-[#1a1a2e] to-[#16213e] p-6">
+    <div className="flex flex-col gap-4 rounded-xl bg-linear-to-br from-[#1a1a2e] to-[#16213e] p-6">
       <h3 className="text-lg font-bold text-white">{title}</h3>
       <p className="flex-1 text-sm leading-relaxed text-white/60">
         {description}

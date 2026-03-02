@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,11 @@ export default function MovieSlider({ mode, onInfoClick }: MovieSliderProps) {
   });
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(true);
+  const discoverType = mode.type === "movie" ? "movies" : "series";
+  const isCategorySlider = !!mode.params?.with_genres;
+  const seeMoreHref = mode.params?.with_genres
+    ? `/discover/${discoverType}/category/${mode.params.with_genres}`
+    : `/discover/${discoverType}`;
 
   useEffect(() => {
     const fetchMovies = async () => {
@@ -60,15 +66,24 @@ export default function MovieSlider({ mode, onInfoClick }: MovieSliderProps) {
 
   return (
     <div className="space-y-3">
-      <h2 className="px-4 text-lg font-semibold text-white md:px-0">
-        {mode.label}
-      </h2>
+      <div className="flex items-center justify-between gap-2 px-4 md:px-0">
+        <h2 className="text-lg font-semibold text-white">{mode.label}</h2>
+        {isCategorySlider && (
+          <Link
+            href={seeMoreHref}
+            className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition-all hover:gap-1.5 hover:text-primary/90"
+          >
+            See more
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        )}
+      </div>
       <div className="group relative">
         {canScrollPrev && (
           <Button
             variant="ghost"
             size="icon"
-            className="absolute left-0 top-0 z-10 hidden h-full w-10 rounded-none bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 md:flex"
+            className="absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-md bg-[#141414]/85 px-2.5 py-3 text-white opacity-0 transition-opacity hover:bg-[#141414] group-hover:opacity-100 md:flex"
             onClick={() => emblaApi?.scrollPrev()}
           >
             <ChevronLeft className="h-6 w-6" />
@@ -76,7 +91,7 @@ export default function MovieSlider({ mode, onInfoClick }: MovieSliderProps) {
         )}
 
         <div ref={emblaRef} className="overflow-hidden">
-          <div className="flex gap-2 px-4 md:px-0">
+          <div className="flex gap-2 px-12 md:px-14">
             {loading
               ? Array.from({ length: 10 }).map((_, i) => (
                   <div key={i} className="w-[140px] flex-shrink-0 md:w-[180px]">
@@ -102,7 +117,7 @@ export default function MovieSlider({ mode, onInfoClick }: MovieSliderProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-0 top-0 z-10 hidden h-full w-10 rounded-none bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 md:flex"
+            className="absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-md bg-[#141414]/85 px-2.5 py-3 text-white opacity-0 transition-opacity hover:bg-[#141414] group-hover:opacity-100 md:flex"
             onClick={() => emblaApi?.scrollNext()}
           >
             <ChevronRight className="h-6 w-6" />

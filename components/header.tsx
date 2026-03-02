@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import type { Genre } from "@/lib/types";
 
 const navLinks = [
   { label: "Home", path: "/" },
@@ -18,10 +20,18 @@ const navLinks = [
 export default function Header() {
   const [query, setQuery] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [genresOpen, setGenresOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const genresMenuRef = useRef<HTMLDivElement | null>(null);
 
   const filteredLinks = navLinks.filter((link) => link.path !== pathname);
+  const discoverType = useMemo(() => {
+    if (pathname.startsWith("/discover/movies")) return "movies";
+    if (pathname.startsWith("/discover/series")) return "series";
+    return null;
+  }, [pathname]);
 
   const handleSearch = () => {
     if (query.trim()) {
@@ -34,12 +44,47 @@ export default function Header() {
     if (e.key === "Enter") handleSearch();
   };
 
+  useEffect(() => {
+    if (!discoverType) {
+      setGenres([]);
+      setGenresOpen(false);
+      return;
+    }
+
+    const endpoint =
+      discoverType === "movies" ? "genre/movie/list" : "genre/tv/list";
+
+    fetch(`/api/tmdb/${endpoint}`)
+      .then((res) => res.json())
+      .then((data) => setGenres(data.genres || []))
+      .catch(() => setGenres([]));
+  }, [discoverType]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!genresMenuRef.current) return;
+      if (!genresMenuRef.current.contains(event.target as Node)) {
+        setGenresOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
   return (
-    <header className="fixed top-0 z-50 w-full bg-gradient-to-b from-black/80 to-transparent">
+    <header className="fixed top-0 z-50 w-full bg-linear-to-b from-black/80 to-transparent">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-8">
-          <Link href="/" className="text-2xl font-extrabold tracking-tight text-primary">
-            BIGFLIX
+          <Link href="/" className="block">
+            <Image
+              src="/bigflix.png"
+              alt="BigFlix"
+              width={160}
+              height={45}
+              className="h-8 w-auto md:h-10"
+              priority
+            />
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">
@@ -52,6 +97,33 @@ export default function Header() {
                 {link.label}
               </Link>
             ))}
+            {discoverType && genres.length > 0 && (
+              <div className="relative" ref={genresMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setGenresOpen((prev) => !prev)}
+                  className="rounded-md px-3 py-2 text-sm font-medium text-white/80 transition-colors hover:text-white"
+                >
+                  Genres
+                </button>
+                {genresOpen && (
+                  <div className="absolute left-0 top-10 z-50 w-[520px] rounded-md border border-white/10 bg-black/95 p-3 shadow-xl">
+                    <div className="grid grid-cols-3 gap-1">
+                      {genres.map((genre) => (
+                        <Link
+                          key={genre.id}
+                          href={`/discover/${discoverType}/category/${genre.id}`}
+                          onClick={() => setGenresOpen(false)}
+                          className="rounded px-2 py-1.5 text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                        >
+                          {genre.name}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </nav>
         </div>
 
@@ -112,6 +184,25 @@ export default function Header() {
                     {link.label}
                   </Link>
                 ))}
+                {discoverType && genres.length > 0 && (
+                  <div className="mt-2 space-y-2 rounded-md border border-white/10 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
+                      Genres
+                    </p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {genres.map((genre) => (
+                        <Link
+                          key={genre.id}
+                          href={`/discover/${discoverType}/category/${genre.id}`}
+                          onClick={() => setMobileOpen(false)}
+                          className="rounded px-2 py-1.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+                        >
+                          {genre.name}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </SheetContent>
           </Sheet>

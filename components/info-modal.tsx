@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Play, X, Volume2, VolumeX, ChevronDown } from "lucide-react";
@@ -18,6 +18,7 @@ interface InfoModalProps {
 }
 
 export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
+  const [activeMovie, setActiveMovie] = useState<Movie | null>(movie);
   const [details, setDetails] = useState<MovieDetails | null>(null);
   const [trailer, setTrailer] = useState<string | null>(null);
   const [similar, setSimilar] = useState<Movie[]>([]);
@@ -26,11 +27,15 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
   const [loading, setLoading] = useState(false);
   const [muted, setMuted] = useState(true);
 
-  const type = movie?.media_type || "movie";
+  const type = activeMovie?.media_type || "movie";
+
+  useEffect(() => {
+    setActiveMovie(movie);
+  }, [movie]);
 
   // Fetch details + trailer + similar
   useEffect(() => {
-    if (!movie || !open) return;
+    if (!activeMovie || !open) return;
     setDetails(null);
     setTrailer(null);
     setSimilar([]);
@@ -41,9 +46,9 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
     const base = type === "tv" ? "tv" : "movie";
 
     Promise.all([
-      fetch(`/api/tmdb/${base}/${movie.id}`).then((r) => r.json()),
-      fetch(`/api/tmdb/${base}/${movie.id}/videos`).then((r) => r.json()),
-      fetch(`/api/tmdb/${base}/${movie.id}/similar`).then((r) => r.json()),
+      fetch(`/api/tmdb/${base}/${activeMovie.id}`).then((r) => r.json()),
+      fetch(`/api/tmdb/${base}/${activeMovie.id}/videos`).then((r) => r.json()),
+      fetch(`/api/tmdb/${base}/${activeMovie.id}/similar`).then((r) => r.json()),
     ])
       .then(([detailsData, videosData, similarData]) => {
         setDetails(detailsData);
@@ -55,39 +60,39 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [movie, open, type]);
+  }, [activeMovie, open, type]);
 
   // Fetch episodes for TV
   useEffect(() => {
-    if (!movie || type !== "tv" || !open) return;
-    fetch(`/api/tmdb/tv/${movie.id}/season/${season}`)
+    if (!activeMovie || type !== "tv" || !open) return;
+    fetch(`/api/tmdb/tv/${activeMovie.id}/season/${season}`)
       .then((r) => r.json())
       .then((data) => setEpisodes(data.episodes || []))
       .catch(() => setEpisodes([]));
-  }, [movie, type, season, open]);
+  }, [activeMovie, type, season, open]);
 
-  if (!movie) return null;
+  if (!activeMovie) return null;
 
   const title =
-    details?.title || details?.name || movie.title || movie.name || "Untitled";
+    details?.title || details?.name || activeMovie.title || activeMovie.name || "Untitled";
   const year = (
     details?.release_date ||
     details?.first_air_date ||
-    movie.release_date ||
-    movie.first_air_date
+    activeMovie.release_date ||
+    activeMovie.first_air_date
   )?.split("-")[0] || "";
   const votePercent = Math.round(
-    (details?.vote_average || movie.vote_average || 0) * 10
+    (details?.vote_average || activeMovie.vote_average || 0) * 10
   );
   const isNew =
     year === String(new Date().getFullYear()) ||
     year === String(new Date().getFullYear() - 1);
   const watchUrl =
-    type === "tv" ? `/watch/${movie.id}?type=tv` : `/watch/${movie.id}`;
+    type === "tv" ? `/watch/${activeMovie.id}?type=tv` : `/watch/${activeMovie.id}`;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent showCloseButton={false} className="max-h-[90vh] max-w-3xl overflow-y-auto border-0 bg-[#181818] p-0 text-white scrollbar-hide">
+      <DialogContent showCloseButton={false} className="max-h-[90vh] max-w-3xl lg:max-w-4xl xl:max-w-5xl overflow-y-auto border-0 bg-[#181818] p-0 text-white scrollbar-hide">
         <DialogTitle className="sr-only">{title}</DialogTitle>
 
         {/* ── Hero: Trailer or Backdrop ── */}
@@ -102,14 +107,14 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
               />
             ) : (
               <Image
-                src={backdropUrl(details?.backdrop_path || movie.backdrop_path)}
+                src={backdropUrl(details?.backdrop_path || activeMovie.backdrop_path)}
                 alt={title}
                 fill
                 className="object-cover"
               />
             )}
 
-            <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-[#181818] via-transparent to-black/30" />
+            <div className="pointer-events-none absolute inset-0 z-10 bg-linear-to-t from-[#181818] via-transparent to-black/30" />
           </div>
 
           {/* Close */}
@@ -204,7 +209,7 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
 
               {/* Overview */}
               <p className="text-sm leading-relaxed text-white/80">
-                {details?.overview || movie.overview}
+                {details?.overview || activeMovie.overview}
               </p>
 
               {/* ── TV: Episodes ── */}
@@ -239,7 +244,7 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
                           <div key={ep.episode_number}>
                             <Separator className="bg-white/10" />
                             <Link
-                              href={`/watch/${movie.id}?type=tv&se=${season}&ep=${ep.episode_number}`}
+                              href={`/watch/${activeMovie.id}?type=tv&se=${season}&ep=${ep.episode_number}`}
                               className="flex gap-4 py-4 rounded-md transition-colors hover:bg-white/5"
                             >
                               <span className="flex w-8 shrink-0 items-center justify-center text-2xl font-bold text-white/50">
@@ -297,7 +302,12 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
                   </h3>
                   <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
                     {similar.map((m) => (
-                      <SimilarCard key={m.id} movie={m} />
+                      <SimilarCard
+                        key={m.id}
+                        movie={m}
+                        mediaType="movie"
+                        onSelect={setActiveMovie}
+                      />
                     ))}
                   </div>
                 </div>
@@ -311,7 +321,12 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
                   </h3>
                   <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
                     {similar.map((m) => (
-                      <SimilarCard key={m.id} movie={m} />
+                      <SimilarCard
+                        key={m.id}
+                        movie={m}
+                        mediaType="tv"
+                        onSelect={setActiveMovie}
+                      />
                     ))}
                   </div>
                 </div>
@@ -324,19 +339,32 @@ export default function InfoModal({ movie, open, onClose }: InfoModalProps) {
   );
 }
 
-function SimilarCard({ movie }: { movie: Movie }) {
+function SimilarCard({
+  movie,
+  mediaType,
+  onSelect,
+}: {
+  movie: Movie;
+  mediaType: "movie" | "tv";
+  onSelect: (movie: Movie) => void;
+}) {
   const title = movie.title || movie.name || "Untitled";
+
   return (
-    <div className="overflow-hidden rounded-md">
-      <div className="relative aspect-[2/3] w-full">
+    <button
+      type="button"
+      onClick={() => onSelect({ ...movie, media_type: mediaType })}
+      className="group block overflow-hidden rounded-md transition-transform duration-200 hover:scale-[1.03]"
+    >
+      <div className="relative aspect-2/3 w-full">
         <Image
           src={imageUrl(movie.poster_path)}
           alt={title}
           fill
-          className="object-cover"
+          className="object-cover transition-opacity group-hover:opacity-90"
           sizes="150px"
         />
       </div>
-    </div>
+    </button>
   );
 }

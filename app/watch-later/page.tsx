@@ -8,15 +8,17 @@ import InfoModal from "@/components/info-modal";
 import { useWatchLater } from "@/hooks/use-watch-later";
 import type { Movie, MovieDetails } from "@/lib/types";
 
+type SavedTitle = MovieDetails & { savedType: "movie" | "tv" };
+
 export default function WatchLaterPage() {
   const { items } = useWatchLater();
-  const [movies, setMovies] = useState<MovieDetails[]>([]);
+  const [savedTitles, setSavedTitles] = useState<SavedTitle[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
   useEffect(() => {
     if (items.length === 0) {
-      setMovies([]);
+      setSavedTitles([]);
       setLoading(false);
       return;
     }
@@ -29,10 +31,21 @@ export default function WatchLaterPage() {
         ).then((res) => res.json())
       )
     )
-      .then((results) => setMovies(results.filter(Boolean)))
-      .catch(() => setMovies([]))
+      .then((results) => {
+        const normalized = results
+          .filter(Boolean)
+          .map((result, index) => ({
+            ...result,
+            savedType: items[index]?.type || "movie",
+          })) as SavedTitle[];
+        setSavedTitles(normalized);
+      })
+      .catch(() => setSavedTitles([]))
       .finally(() => setLoading(false));
   }, [items]);
+
+  const movies = savedTitles.filter((title) => title.savedType === "movie");
+  const tvShows = savedTitles.filter((title) => title.savedType === "tv");
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
@@ -43,22 +56,56 @@ export default function WatchLaterPage() {
         {loading ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-[2/3] w-full rounded-md" />
+              <Skeleton key={i} className="aspect-2/3 w-full rounded-md" />
             ))}
           </div>
-        ) : movies.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {movies.map((movie) => {
-              const type = items.find((i) => i.id === movie.id)?.type || "movie";
-              return (
-                <MovieCard
-                  key={movie.id}
-                  movie={movie}
-                  mediaType={type}
-                  onInfoClick={setSelectedMovie}
-                />
-              );
-            })}
+        ) : savedTitles.length > 0 ? (
+          <div className="space-y-10">
+            {movies.length > 0 && (
+              <section>
+                <h2 className="mb-4 text-xl font-semibold text-white">Movies</h2>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                  {movies.map((movie) => (
+                    <MovieCard
+                      key={`movie-${movie.id}`}
+                      movie={movie}
+                      mediaType="movie"
+                      onInfoClick={setSelectedMovie}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {tvShows.length > 0 && (
+              <section>
+                <h2 className="mb-4 text-xl font-semibold text-white">TV Shows</h2>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                  {tvShows.map((show) => (
+                    <MovieCard
+                      key={`tv-${show.id}`}
+                      movie={show}
+                      mediaType="tv"
+                      onInfoClick={setSelectedMovie}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {movies.length === 0 && tvShows.length > 0 && (
+              <section>
+                <h2 className="mb-4 text-xl font-semibold text-white">Movies</h2>
+                <p className="text-sm text-white/50">No saved movies yet.</p>
+              </section>
+            )}
+
+            {tvShows.length === 0 && movies.length > 0 && (
+              <section>
+                <h2 className="mb-4 text-xl font-semibold text-white">TV Shows</h2>
+                <p className="text-sm text-white/50">No saved TV shows yet.</p>
+              </section>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-24 text-center">
