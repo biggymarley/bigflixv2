@@ -498,7 +498,7 @@ function TrendingSlider({
                 <button
                   key={movie.id}
                   onClick={() => onInfoClick({ ...movie, media_type: mediaType })}
-                  className="group/card relative shrink-0 basis-[30%] sm:basis-[22%] md:basis-[18%] lg:basis-[15%]"
+                  className="group/card relative shrink-0 basis-[50%] sm:basis-[22%] md:basis-[18%] lg:basis-[15%]"
                 >
                   <div className="relative aspect-2/3 w-full overflow-hidden rounded-md transition-transform duration-300 group-hover/card:scale-105">
                     {missingPoster ? (
