@@ -107,6 +107,22 @@ export default function Home() {
             >
               TV Shows
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/80 bg-transparent text-white hover:bg-white/10"
+              onClick={() => router.push("/watch-later")}
+            >
+              Watch Later
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/80 bg-transparent text-white hover:bg-white/10"
+              onClick={() => router.push("/history")}
+            >
+              History
+            </Button>
           </div>
         </div>
 

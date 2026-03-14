@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWatchLater } from "@/hooks/use-watch-later";
+import { useWatchHistory } from "@/hooks/use-watch-history";
 import type { Episode, MovieDetails } from "@/lib/types";
 
 export default function WatchPage() {
@@ -32,12 +33,14 @@ export default function WatchPage() {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const returnTo = useRef("/");
   const { addItem, removeItem, isInList } = useWatchLater();
+  const { addItem: addHistoryItem } = useWatchHistory();
   const saved = isInList(Number(id));
 
   useEffect(() => {
@@ -59,6 +62,19 @@ export default function WatchPage() {
       .then((data) => setEpisodes(data.episodes || []))
       .catch(() => setEpisodes([]));
   }, [id, type, season]);
+
+  useEffect(() => {
+    const numericId = Number(id);
+    if (!Number.isFinite(numericId)) return;
+    if (type !== "movie" && type !== "tv") return;
+
+    if (type === "tv") {
+      addHistoryItem({ id: numericId, type: "tv", season, episode });
+      return;
+    }
+
+    addHistoryItem({ id: numericId, type: "movie" });
+  }, [id, type, season, episode, addHistoryItem]);
 
   const embedUrl =
     type === "tv"
@@ -82,10 +98,39 @@ export default function WatchPage() {
     return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
 
-  const handleMouseMove = useCallback(() => {
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(hover: none), (pointer: coarse)");
+    const updateIsMobile = () => setIsMobile(mediaQuery.matches);
+
+    updateIsMobile();
+    mediaQuery.addEventListener("change", updateIsMobile);
+
+    return () => mediaQuery.removeEventListener("change", updateIsMobile);
+  }, []);
+
+  const handleInteraction = useCallback(() => {
     setShowControls(true);
+    if (isMobile) return;
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = setTimeout(() => setShowControls(false), 4000);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (isMobile) {
+      setShowControls(true);
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+      }
+    };
   }, []);
 
   const handleSave = () => {
@@ -97,11 +142,13 @@ export default function WatchPage() {
     <div
       ref={containerRef}
       className="relative flex h-screen w-full flex-col bg-black overflow-hidden"
-      onMouseMove={handleMouseMove}
+      onMouseMove={handleInteraction}
+      onTouchStart={handleInteraction}
+      onTouchMove={handleInteraction}
     >
       {/* Top controls bar */}
       <div
-        className={`absolute inset-x-0 top-0 z-30 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 py-3 transition-opacity duration-300 ${
+        className={`absolute inset-x-0 top-0 z-30 flex items-center justify-between bg-linear-to-b from-black/80 to-transparent px-4 py-3 transition-opacity duration-300 ${
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
@@ -161,6 +208,14 @@ export default function WatchPage() {
         allowFullScreen
         allow="autoplay; fullscreen; encrypted-media"
         referrerPolicy="origin"
+      />
+
+      {/* Wake layer for iframe-heavy area: shows controls on interaction when hidden */}
+      <div
+        className={`absolute inset-0 z-10 ${showControls ? "pointer-events-none" : "pointer-events-auto"}`}
+        onMouseMove={handleInteraction}
+        onTouchStart={handleInteraction}
+        onTouchMove={handleInteraction}
       />
 
       {/* Episodes sidebar — slides in from the right, sits above the iframe */}

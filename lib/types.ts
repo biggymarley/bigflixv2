@@ -118,3 +118,11 @@ export interface WatchLaterItem {
   id: number;
   type: "movie" | "tv";
 }
+
+export interface WatchHistoryItem {
+  id: number;
+  type: "movie" | "tv";
+  watchedAt: number;
+  season?: number;
+  episode?: number;
+}

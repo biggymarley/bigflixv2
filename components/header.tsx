@@ -15,6 +15,7 @@ const navLinks = [
   { label: "Movies", path: "/discover/movies" },
   { label: "TV Shows", path: "/discover/series" },
   { label: "Watch Later", path: "/watch-later" },
+  { label: "History", path: "/history" },
 ];
 
 export default function Header() {
