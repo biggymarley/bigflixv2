@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Header from "@/components/header";
 import InfoModal from "@/components/info-modal";
 import type { Movie } from "@/lib/types";
 import { imageUrl, isImageMissing } from "@/lib/tmdb";
@@ -70,6 +71,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black">
+      <Header />
       {/* ── Hero Section ── */}
       <div className="relative flex min-h-160 flex-col">
         <Image
@@ -81,53 +83,8 @@ export default function Home() {
         />
         <div className="absolute inset-0 bg-linear-to-b from-black/70 via-black/50 to-black" />
 
-        {/* Top bar */}
-        <div className="relative z-10 flex items-center justify-between px-6 py-5 md:px-12">
-          <Image
-            src="/bigflix.png"
-            alt="BigFlix"
-            width={160}
-            height={45}
-            className="h-8 w-auto md:h-11"
-          />
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-white/80 bg-transparent text-white hover:bg-white/10"
-              onClick={() => router.push("/discover/movies")}
-            >
-              Movies
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-white/80 bg-transparent text-white hover:bg-white/10"
-              onClick={() => router.push("/discover/series")}
-            >
-              TV Shows
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-white/80 bg-transparent text-white hover:bg-white/10"
-              onClick={() => router.push("/watch-later")}
-            >
-              Watch Later
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-white/80 bg-transparent text-white hover:bg-white/10"
-              onClick={() => router.push("/history")}
-            >
-              History
-            </Button>
-          </div>
-        </div>
-
         {/* Hero content */}
-        <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-24 pt-20 text-center md:pt-24">
           <div className="mx-auto max-w-2xl space-y-5">
             <h1 className="text-3xl font-extrabold tracking-tight text-white md:text-5xl lg:text-6xl">
               Unlimited movies, TV
