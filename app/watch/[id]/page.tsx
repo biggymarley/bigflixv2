@@ -76,10 +76,11 @@ export default function WatchPage() {
     addHistoryItem({ id: numericId, type: "movie" });
   }, [id, type, season, episode, addHistoryItem]);
 
+  const embedBase = process.env.NEXT_PUBLIC_EMBED_BASE_URL;
   const embedUrl =
     type === "tv"
-      ? `https://vidsrc.xyz/embed/tv/${id}/${season}/${episode}`
-      : `https://vidsrc.xyz/embed/movie/${id}`;
+      ? `${embedBase}/embed/tv/${id}/${season}/${episode}`
+      : `${embedBase}/embed/movie/${id}`;
 
   const title = details?.title || details?.name || "Loading...";
 
