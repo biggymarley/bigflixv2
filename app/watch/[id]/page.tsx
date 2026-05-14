@@ -8,6 +8,7 @@ import {
   Maximize,
   Minimize,
   ChevronDown,
+  ChevronRight,
   LayoutList,
   X,
 } from "lucide-react";
@@ -75,6 +76,25 @@ export default function WatchPage() {
 
     addHistoryItem({ id: numericId, type: "movie" });
   }, [id, type, season, episode, addHistoryItem]);
+
+  const availableSeasons = details?.seasons?.filter((s) => s.season_number > 0) || [];
+  const currentEpisodeIndex = episodes.findIndex((ep) => ep.episode_number === episode);
+  const isLastEpisodeInSeason = episodes.length > 0 && currentEpisodeIndex === episodes.length - 1;
+  const currentSeasonIndex = availableSeasons.findIndex((s) => s.season_number === season);
+  const hasNextSeason = currentSeasonIndex !== -1 && currentSeasonIndex < availableSeasons.length - 1;
+  const isLastEpisode = isLastEpisodeInSeason && !hasNextSeason;
+
+  const nextEpisodeInfo = type === "tv" && !isLastEpisode && episodes.length > 0
+    ? isLastEpisodeInSeason
+      ? { season: availableSeasons[currentSeasonIndex + 1].season_number, episode: 1, name: null, isNewSeason: true }
+      : { season, episode: episode + 1, name: episodes[currentEpisodeIndex + 1]?.name || null, isNewSeason: false }
+    : null;
+
+  const goToNextEpisode = () => {
+    if (!nextEpisodeInfo) return;
+    setSeason(nextEpisodeInfo.season);
+    setEpisode(nextEpisodeInfo.episode);
+  };
 
   const embedBase = process.env.NEXT_PUBLIC_EMBED_BASE_URL;
   const embedUrl =
@@ -218,6 +238,33 @@ export default function WatchPage() {
         onTouchStart={handleInteraction}
         onTouchMove={handleInteraction}
       />
+
+      {/* Next Episode button */}
+      {nextEpisodeInfo && (
+        <div
+          className={`absolute bottom-6 right-6 z-20 transition-all duration-300 ${
+            showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
+          }`}
+        >
+          <button
+            onClick={goToNextEpisode}
+            className="group flex items-center gap-3 rounded-xl border border-white/10 bg-black/75 backdrop-blur-md px-4 py-3 text-left shadow-2xl transition-all duration-200 hover:border-primary/60 hover:bg-black/90 hover:scale-[1.02]"
+          >
+            <div className="w-0.5 self-stretch rounded-full bg-primary opacity-80 group-hover:opacity-100" />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary/80 group-hover:text-primary">
+                {nextEpisodeInfo.isNewSeason ? `Season ${nextEpisodeInfo.season}` : "Next Episode"}
+              </span>
+              <span className="text-sm font-medium text-white/90 group-hover:text-white">
+                {nextEpisodeInfo.isNewSeason
+                  ? "Episode 1"
+                  : `E${nextEpisodeInfo.episode}${nextEpisodeInfo.name ? ` · ${nextEpisodeInfo.name}` : ""}`}
+              </span>
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-white/40 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-white/80" />
+          </button>
+        </div>
+      )}
 
       {/* Episodes sidebar — slides in from the right, sits above the iframe */}
       {type === "tv" && details?.seasons && (
