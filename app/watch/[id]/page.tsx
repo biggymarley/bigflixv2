@@ -242,7 +242,7 @@ export default function WatchPage() {
       {/* Next Episode button */}
       {nextEpisodeInfo && (
         <div
-          className={`absolute bottom-6 right-6 z-20 transition-all duration-300 ${
+          className={`absolute bottom-20 right-6 z-20 transition-all duration-300 ${
             showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
           }`}
         >
