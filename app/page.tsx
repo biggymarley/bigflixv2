@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   Download,
   Zap,
+  Play,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -222,7 +224,7 @@ export default function Home() {
      
 
       {/* ── AI Movie Match (top priority) ── */}
-      <section className="relative bg-black px-6 pb-4 pt-12 md:px-12 md:pt-16">
+      <section className="relative bg-black px-6 pb-12 pt-12 md:px-12 md:pb-16 md:pt-16">
         <div className="mx-auto max-w-6xl">
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1c1026] via-[#14121f] to-[#0b1322] shadow-2xl shadow-black/40">
             <div className="grid items-stretch gap-8 p-6 md:p-10 lg:grid-cols-[1.15fr_1fr]">
@@ -311,51 +313,63 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Trending Now ── */}
-      <div className="space-y-4">
+      {/* ── Rows ── */}
+      <div className="pt-2">
         {historyTitles.length > 0 && (
-          <PersonalSlider
+          <MediaRow
             title="Continue Watching"
             seeMoreHref="/history"
-            cards={historyTitles.map((title) => ({
-              key: `history-${title.rowType}-${title.id}`,
-              poster_path: title.poster_path,
-              title: title.title || title.name || "Untitled",
+            cards={historyTitles.map((t) => ({
+              key: `history-${t.rowType}-${t.id}`,
+              poster_path: t.poster_path,
+              title: t.title || t.name || "Untitled",
               onClick: () =>
                 router.push(
-                  title.rowType === "tv"
-                    ? `/watch/${title.id}?type=tv&se=${title.season || 1}&ep=${
-                        title.episode || 1
+                  t.rowType === "tv"
+                    ? `/watch/${t.id}?type=tv&se=${t.season || 1}&ep=${
+                        t.episode || 1
                       }`
-                    : `/watch/${title.id}?type=movie`
+                    : `/watch/${t.id}?type=movie`
                 ),
             }))}
           />
         )}
         {laterTitles.length > 0 && (
-          <PersonalSlider
+          <MediaRow
             title="Watch Later"
             seeMoreHref="/watch-later"
-            cards={laterTitles.map((title) => ({
-              key: `later-${title.rowType}-${title.id}`,
-              poster_path: title.poster_path,
-              title: title.title || title.name || "Untitled",
+            cards={laterTitles.map((t) => ({
+              key: `later-${t.rowType}-${t.id}`,
+              poster_path: t.poster_path,
+              title: t.title || t.name || "Untitled",
               onClick: () =>
-                handleTrendingInfoClick({ ...title, media_type: title.rowType }),
+                handleTrendingInfoClick({ ...t, media_type: t.rowType }),
             }))}
           />
         )}
-        <TrendingSlider
+        <MediaRow
           title="Trending Movies"
-          mediaType="movie"
-          trending={trendingMovies}
-          onInfoClick={handleTrendingInfoClick}
+          seeMoreHref="/discover/movies"
+          cards={trendingMovies.map((m, i) => ({
+            key: `tm-${m.id}`,
+            poster_path: m.poster_path,
+            title: m.title || m.name || "Untitled",
+            rank: i + 1,
+            meta: m.vote_average ? m.vote_average.toFixed(1) : undefined,
+            onClick: () => handleTrendingInfoClick({ ...m, media_type: "movie" }),
+          }))}
         />
-        <TrendingSlider
+        <MediaRow
           title="Trending TV Shows"
-          mediaType="tv"
-          trending={trendingTv}
-          onInfoClick={handleTrendingInfoClick}
+          seeMoreHref="/discover/series"
+          cards={trendingTv.map((m, i) => ({
+            key: `tt-${m.id}`,
+            poster_path: m.poster_path,
+            title: m.title || m.name || "Untitled",
+            rank: i + 1,
+            meta: m.vote_average ? m.vote_average.toFixed(1) : undefined,
+            onClick: () => handleTrendingInfoClick({ ...m, media_type: "tv" }),
+          }))}
         />
       </div>
       {/* ── Ad-Free Guide ── */}
@@ -537,132 +551,90 @@ export default function Home() {
   );
 }
 
-function TrendingSlider({
-  title,
-  mediaType,
-  trending,
-  onInfoClick,
-}: {
-  title: string;
-  mediaType: "movie" | "tv";
-  trending: Movie[];
-  onInfoClick: (movie: Movie) => void;
-}) {
-  const seeMoreHref = mediaType === "movie" ? "/discover/movies" : "/discover/series";
-  const [emblaRef, emblaApi] = useEmblaCarousel({
-    align: "start",
-    slidesToScroll: 2,
-    containScroll: "trimSnaps",
-    dragFree: true,
-  });
-  const [canPrev, setCanPrev] = useState(false);
-  const [canNext, setCanNext] = useState(true);
-
-  const onSelect = useCallback(() => {
-    if (!emblaApi) return;
-    setCanPrev(emblaApi.canScrollPrev());
-    setCanNext(emblaApi.canScrollNext());
-  }, [emblaApi]);
-
-  useEffect(() => {
-    if (!emblaApi) return;
-    onSelect();
-    emblaApi.on("select", onSelect);
-    emblaApi.on("reInit", onSelect);
-  }, [emblaApi, onSelect]);
-
-  return (
-    <section className="relative z-10 bg-black px-6 pb-16 md:px-12">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <h2 className="text-xl font-bold text-white md:text-2xl">{title}</h2>
-        <Link
-          href={seeMoreHref}
-          className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition-all hover:gap-1.5 hover:text-primary/90"
-        >
-          See more
-          <ChevronRight className="h-4 w-4" />
-        </Link>
-      </div>
-
-      <div className="group relative">
-        {canPrev && (
-          <button
-            onClick={() => emblaApi?.scrollPrev()}
-            className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-md bg-[#141414]/85 px-2.5 py-3 opacity-0 transition-opacity hover:bg-[#141414] group-hover:opacity-100"
-          >
-            <ChevronLeft className="h-8 w-8 text-white" />
-          </button>
-        )}
-
-        <div ref={emblaRef} className="overflow-hidden px-12 md:px-14">
-          <div className="flex gap-4 md:gap-8">
-            {trending.map((movie, i) => {
-              const title = movie.title || movie.name || "Untitled";
-              const missingPoster = isImageMissing(movie.poster_path);
-              return (
-                <button
-                  key={movie.id}
-                  onClick={() => onInfoClick({ ...movie, media_type: mediaType })}
-                  className="group/card relative shrink-0 basis-[50%] sm:basis-[22%] md:basis-[18%] lg:basis-[15%]"
-                >
-                  <div className="relative aspect-2/3 w-full overflow-hidden rounded-md transition-transform duration-300 group-hover/card:scale-105">
-                    {missingPoster ? (
-                      <div className="absolute inset-0 bg-[url('/bigflix.png')] bg-repeat bg-size-[120px_auto]" />
-                    ) : (
-                      <Image
-                        src={imageUrl(movie.poster_path)}
-                        alt={title}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 640px) 30vw, (max-width: 1024px) 22vw, 15vw"
-                      />
-                    )}
-                    {missingPoster && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-2 text-center text-xs font-semibold text-white">
-                        Image not available
-                      </div>
-                    )}
-                  </div>
-                  <span
-                    className="absolute -bottom-2 -left-3 select-none text-[4rem]  leading-none text-black md:-left-4 md:text-[5.5rem] font-extrabold"
-                    style={{ WebkitTextStroke: "2px #fff" }}
-                  >
-                    {i + 1}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {canNext && (
-          <button
-            onClick={() => emblaApi?.scrollNext()}
-            className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-md bg-[#141414]/85 px-2.5 py-3 opacity-0 transition-opacity hover:bg-[#141414] group-hover:opacity-100"
-          >
-            <ChevronRight className="h-8 w-8 text-white" />
-          </button>
-        )}
-      </div>
-    </section>
-  );
-}
-
-type PersonalCard = {
+type RowCard = {
   key: string;
   poster_path: string | null;
   title: string;
   onClick: () => void;
+  rank?: number;
+  meta?: string;
 };
 
-function PersonalSlider({
+function PosterCard({
+  poster_path,
+  title,
+  onClick,
+  rank,
+  meta,
+}: Omit<RowCard, "key">) {
+  const missing = isImageMissing(poster_path);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group/card relative shrink-0 basis-[42%] sm:basis-[29%] md:basis-[22%] lg:basis-[16.5%]"
+    >
+      <div className="relative z-10 aspect-2/3 w-full overflow-hidden rounded-xl ring-1 ring-white/10 transition-all duration-300 group-hover/card:-translate-y-1 group-hover/card:ring-2 group-hover/card:ring-primary/60 group-hover/card:shadow-2xl group-hover/card:shadow-primary/25">
+        {missing ? (
+          <div className="absolute inset-0 bg-[url('/bigflix.png')] bg-repeat bg-size-[120px_auto]" />
+        ) : (
+          <Image
+            src={imageUrl(poster_path)}
+            alt={title}
+            fill
+            className="object-cover transition-transform duration-500 group-hover/card:scale-110"
+            sizes="(max-width: 640px) 42vw, (max-width: 1024px) 22vw, 16vw"
+          />
+        )}
+        {missing && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-2 text-center text-xs font-semibold text-white">
+            Image not available
+          </div>
+        )}
+
+        {/* hover veil */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/25 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
+
+        {/* play button */}
+        <span className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 scale-75 items-center justify-center rounded-full bg-primary text-white opacity-0 shadow-lg shadow-black/40 transition-all duration-300 group-hover/card:scale-100 group-hover/card:opacity-100">
+          <Play className="h-5 w-5 translate-x-px fill-current" />
+        </span>
+
+        {/* info */}
+        <div className="absolute inset-x-0 bottom-0 translate-y-1 p-2.5 opacity-0 transition-all duration-300 group-hover/card:translate-y-0 group-hover/card:opacity-100">
+          <p className="line-clamp-2 text-xs font-semibold leading-tight text-white">
+            {title}
+          </p>
+          {meta && (
+            <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-amber-300">
+              <Star className="h-3 w-3 fill-amber-300" />
+              {meta}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* rank number */}
+      {rank !== undefined && (
+        <span
+          className="pointer-events-none absolute -bottom-2 -left-3 z-20 select-none text-[4rem] font-extrabold leading-none text-black md:-left-4 md:text-[5.5rem]"
+          style={{ WebkitTextStroke: "2px #fff" }}
+        >
+          {rank}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function MediaRow({
   title,
   seeMoreHref,
   cards,
 }: {
   title: string;
   seeMoreHref: string;
-  cards: PersonalCard[];
+  cards: RowCard[];
 }) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
@@ -686,69 +658,53 @@ function PersonalSlider({
     emblaApi.on("reInit", onSelect);
   }, [emblaApi, onSelect]);
 
+  if (cards.length === 0) return null;
+
   return (
-    <section className="relative z-10 bg-black px-6 pb-16 md:px-12">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <h2 className="text-xl font-bold text-white md:text-2xl">{title}</h2>
+    <section className="relative z-10 bg-black px-6 pb-12 md:px-12">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-xl font-bold tracking-tight text-white md:text-2xl">
+          {title}
+        </h2>
         <Link
           href={seeMoreHref}
-          className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition-all hover:gap-1.5 hover:text-primary/90"
+          className="group/see inline-flex items-center gap-1 text-sm font-semibold text-white/60 transition-colors hover:text-primary"
         >
           See all
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4 transition-transform group-hover/see:translate-x-0.5" />
         </Link>
       </div>
 
       <div className="group relative">
+        {/* edge fades */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-black to-transparent md:w-12" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-black to-transparent md:w-12" />
+
         {canPrev && (
           <button
             onClick={() => emblaApi?.scrollPrev()}
-            className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-md bg-[#141414]/85 px-2.5 py-3 opacity-0 transition-opacity hover:bg-[#141414] group-hover:opacity-100"
+            aria-label="Scroll left"
+            className="absolute left-1 top-[42%] z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/70 text-white opacity-0 ring-1 ring-white/15 backdrop-blur transition-all hover:bg-primary hover:ring-primary group-hover:opacity-100"
           >
-            <ChevronLeft className="h-8 w-8 text-white" />
+            <ChevronLeft className="h-6 w-6" />
           </button>
         )}
 
-        <div ref={emblaRef} className="overflow-hidden px-12 md:px-14">
-          <div className="flex gap-4 md:gap-8">
-            {cards.map((card) => {
-              const missingPoster = isImageMissing(card.poster_path);
-              return (
-                <button
-                  key={card.key}
-                  onClick={card.onClick}
-                  className="group/card relative shrink-0 basis-[50%] sm:basis-[22%] md:basis-[18%] lg:basis-[15%]"
-                >
-                  <div className="relative aspect-2/3 w-full overflow-hidden rounded-md transition-transform duration-300 group-hover/card:scale-105">
-                    {missingPoster ? (
-                      <div className="absolute inset-0 bg-[url('/bigflix.png')] bg-repeat bg-size-[120px_auto]" />
-                    ) : (
-                      <Image
-                        src={imageUrl(card.poster_path)}
-                        alt={card.title}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 640px) 30vw, (max-width: 1024px) 22vw, 15vw"
-                      />
-                    )}
-                    {missingPoster && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-2 text-center text-xs font-semibold text-white">
-                        Image not available
-                      </div>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
+        <div ref={emblaRef} className="overflow-hidden px-9 md:px-12">
+          <div className="flex gap-3 py-4 md:gap-5">
+            {cards.map(({ key, ...card }) => (
+              <PosterCard key={key} {...card} />
+            ))}
           </div>
         </div>
 
         {canNext && (
           <button
             onClick={() => emblaApi?.scrollNext()}
-            className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-md bg-[#141414]/85 px-2.5 py-3 opacity-0 transition-opacity hover:bg-[#141414] group-hover:opacity-100"
+            aria-label="Scroll right"
+            className="absolute right-1 top-[42%] z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/70 text-white opacity-0 ring-1 ring-white/15 backdrop-blur transition-all hover:bg-primary hover:ring-primary group-hover:opacity-100"
           >
-            <ChevronRight className="h-8 w-8 text-white" />
+            <ChevronRight className="h-6 w-6" />
           </button>
         )}
       </div>

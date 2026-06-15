@@ -4,14 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, Search, X } from "lucide-react";
+import { Menu, Search, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import type { Genre } from "@/lib/types";
 
 const navLinks = [
-  { label: "Home", path: "/" },
+  { label: "AI Picks", path: "/ai", highlight: true },
   { label: "Movies", path: "/discover/movies" },
   { label: "TV Shows", path: "/discover/series" },
   { label: "Watch Later", path: "/watch-later" },
@@ -89,15 +89,26 @@ export default function Header() {
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">
-            {filteredLinks.map((link) => (
-              <Link
-                key={link.path}
-                href={link.path}
-                className="rounded-md px-3 py-2 text-sm font-medium text-white/80 transition-colors hover:text-white"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {filteredLinks.map((link) =>
+              link.highlight ? (
+                <Link
+                  key={link.path}
+                  href={link.path}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-semibold text-white transition-colors hover:border-primary hover:bg-primary/20"
+                >
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  {link.label}
+                </Link>
+              ) : (
+                <Link
+                  key={link.path}
+                  href={link.path}
+                  className="rounded-md px-3 py-2 text-sm font-medium text-white/80 transition-colors hover:text-white"
+                >
+                  {link.label}
+                </Link>
+              )
+            )}
             {discoverType && genres.length > 0 && (
               <div className="relative" ref={genresMenuRef}>
                 <button
@@ -176,12 +187,15 @@ export default function Header() {
                     key={link.path}
                     href={link.path}
                     onClick={() => setMobileOpen(false)}
-                    className={`rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
+                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
                       pathname === link.path
                         ? "bg-primary/20 text-primary"
+                        : link.highlight
+                        ? "border border-primary/40 bg-primary/10 font-semibold text-white hover:bg-primary/20"
                         : "text-white/80 hover:bg-white/5 hover:text-white"
                     }`}
                   >
+                    {link.highlight && <Sparkles className="h-4 w-4 text-primary" />}
                     {link.label}
                   </Link>
                 ))}
