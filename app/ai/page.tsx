@@ -1,28 +1,62 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
+  Award,
+  Baby,
+  Bookmark,
+  BookmarkCheck,
+  Brain,
+  Clapperboard,
+  Coffee,
+  Compass,
+  Dices,
+  Film,
+  Flame,
+  Ghost,
+  Heart,
+  HeartHandshake,
+  Laugh,
   Loader2,
+  Moon,
+  Play,
+  Popcorn,
   RefreshCw,
   RotateCcw,
+  Shuffle,
   Sparkles,
+  Star,
+  TrendingUp,
+  Tv,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import Header from "@/components/header";
 import InfoModal from "@/components/info-modal";
 import PixelBlast from "@/components/PixelBlast";
-import FuzzyText from "@/components/FuzzyText";
 import { Button } from "@/components/ui/button";
 import { useWatchLater } from "@/hooks/use-watch-later";
 import type { Movie } from "@/lib/types";
 import { imageUrl, isImageMissing } from "@/lib/tmdb";
 
-type Question = {
-  id: "mood" | "pace" | "format" | "genre";
-  title: string;
-  options: { value: string; label: string }[];
+type QuestionId = "format" | "mood" | "company" | "genre" | "discovery";
+
+type Option = {
+  value: string;
+  label: string;
+  description: string;
+  icon: LucideIcon;
 };
 
-type AnswerState = Record<Question["id"], string>;
+type Question = {
+  id: QuestionId;
+  title: string;
+  subtitle: string;
+};
+
+type AnswerState = Record<QuestionId, string>;
 
 type Recommendation = {
   id: number;
@@ -37,48 +71,81 @@ type Recommendation = {
 
 const QUESTIONS: Question[] = [
   {
-    id: "mood",
-    title: "What mood are you in right now?",
-    options: [
-      { value: "cozy", label: "Cozy and comfort" },
-      { value: "uplifting", label: "Uplifting and light" },
-      { value: "adventurous", label: "Adventurous and fun" },
-      { value: "intense", label: "Dark and intense" },
-    ],
-  },
-  {
-    id: "pace",
-    title: "How fast should it feel?",
-    options: [
-      { value: "slow", label: "Slow burn" },
-      { value: "balanced", label: "Balanced pace" },
-      { value: "fast", label: "Fast and thrilling" },
-    ],
-  },
-  {
     id: "format",
-    title: "What do you want to watch?",
-    options: [
-      { value: "movie", label: "Movie night" },
-      { value: "tv", label: "Series binge" },
-      { value: "either", label: "Either works" },
-    ],
+    title: "What are you in the mood for?",
+    subtitle: "A one-night story or something to sink into.",
+  },
+  {
+    id: "mood",
+    title: "What kind of experience?",
+    subtitle: "How do you want to feel by the end.",
+  },
+  {
+    id: "company",
+    title: "Who's watching tonight?",
+    subtitle: "We'll keep the picks right for the room.",
   },
   {
     id: "genre",
-    title: "Pick a genre vibe",
-    options: [
-      { value: "action", label: "Action" },
-      { value: "comedy", label: "Comedy" },
-      { value: "drama", label: "Drama" },
-      { value: "scifi_fantasy", label: "Sci-fi / Fantasy" },
-      { value: "thriller_horror", label: "Thriller / Horror" },
-      { value: "surprise", label: "Surprise me" },
-    ],
+    title: "Pick a flavor",
+    subtitle: "Your lean for tonight — not a life commitment.",
+  },
+  {
+    id: "discovery",
+    title: "How should it feel to find?",
+    subtitle: "From comfort watches to deep cuts.",
   },
 ];
 
+const OPTIONS: Record<QuestionId, Option[]> = {
+  format: [
+    { value: "movie", label: "A movie", description: "One and done", icon: Film },
+    { value: "tv", label: "A series", description: "Something to binge", icon: Tv },
+    { value: "either", label: "Either works", description: "Surprise me", icon: Shuffle },
+  ],
+  mood: [
+    { value: "cozy", label: "Cozy & comforting", description: "Easy, warm, low stakes", icon: Coffee },
+    { value: "funny", label: "Make me laugh", description: "Light and fun", icon: Laugh },
+    { value: "thrilling", label: "Edge of my seat", description: "Tense and gripping", icon: Flame },
+    { value: "mindbending", label: "Mind-bending", description: "Make me think", icon: Brain },
+    { value: "emotional", label: "Emotional & moving", description: "Hit me in the feels", icon: Heart },
+    { value: "dark", label: "Dark & gritty", description: "Moody and intense", icon: Moon },
+  ],
+  company: [
+    { value: "solo", label: "Just me", description: "Anything goes", icon: Coffee },
+    { value: "partner", label: "Date night", description: "Shared, easy vibe", icon: HeartHandshake },
+    { value: "family", label: "Family & kids", description: "Keep it safe", icon: Baby },
+    { value: "friends", label: "Friends hangout", description: "Fun for the group", icon: Users },
+  ],
+  genre: [
+    { value: "action", label: "Action", description: "Big and kinetic", icon: Flame },
+    { value: "comedy", label: "Comedy", description: "Laughs first", icon: Laugh },
+    { value: "drama", label: "Drama", description: "Character-driven", icon: Clapperboard },
+    { value: "scifi_fantasy", label: "Sci-fi / Fantasy", description: "Other worlds", icon: Sparkles },
+    { value: "thriller_horror", label: "Thriller / Horror", description: "Keep me on edge", icon: Ghost },
+    { value: "romance", label: "Romance", description: "Matters of the heart", icon: Heart },
+    { value: "surprise", label: "Surprise me", description: "No preference", icon: Dices },
+  ],
+  discovery: [
+    { value: "popular", label: "Crowd-pleasers", description: "Loved by everyone", icon: TrendingUp },
+    { value: "hidden", label: "Hidden gems", description: "Underrated picks", icon: Compass },
+    { value: "acclaimed", label: "Critically acclaimed", description: "Award-winning", icon: Award },
+    { value: "surprise", label: "Surprise me", description: "Wildcard", icon: Dices },
+  ],
+};
+
+function labelFor(id: QuestionId, value?: string) {
+  return OPTIONS[id].find((option) => option.value === value)?.label;
+}
+
+function gridClassFor(count: number) {
+  if (count <= 3) return "grid-cols-1 sm:grid-cols-3";
+  if (count === 4) return "grid-cols-2 lg:grid-cols-4";
+  return "grid-cols-2 sm:grid-cols-3";
+}
+
 export default function AiPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Partial<AnswerState>>({});
   const [loading, setLoading] = useState(false);
@@ -89,10 +156,18 @@ export default function AiPage() {
   const { addItem, isInList } = useWatchLater();
 
   const activeQuestion = QUESTIONS[currentStep];
-  const progress = useMemo(
-    () => Math.round((currentStep / QUESTIONS.length) * 100),
-    [currentStep]
-  );
+  const activeOptions = activeQuestion ? OPTIONS[activeQuestion.id] : [];
+  const hasResults = recommendations.length > 0;
+
+  const vibeSummary = useMemo(() => {
+    return [
+      labelFor("mood", answers.mood),
+      labelFor("genre", answers.genre),
+      labelFor("company", answers.company),
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }, [answers.mood, answers.genre, answers.company]);
 
   const runRecommendations = async (nextAnswers: Partial<AnswerState>) => {
     setLoading(true);
@@ -109,8 +184,7 @@ export default function AiPage() {
       }
       setRecommendations(data.recommendations || []);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Something went wrong.";
+      const message = err instanceof Error ? err.message : "Something went wrong.";
       setError(message);
     } finally {
       setLoading(false);
@@ -122,7 +196,6 @@ export default function AiPage() {
     const nextAnswers = { ...answers, [activeQuestion.id]: value };
     setAnswers(nextAnswers);
     setError(null);
-    setRecommendations([]);
 
     const isLastQuestion = currentStep === QUESTIONS.length - 1;
     if (isLastQuestion) {
@@ -130,6 +203,12 @@ export default function AiPage() {
       return;
     }
     setCurrentStep((prev) => prev + 1);
+  };
+
+  const goBack = () => {
+    if (currentStep === 0 || loading) return;
+    setError(null);
+    setCurrentStep((prev) => prev - 1);
   };
 
   const resetFlow = () => {
@@ -140,6 +219,36 @@ export default function AiPage() {
     setError(null);
     setLoading(false);
   };
+
+  const refineAnswers = () => {
+    setRecommendations([]);
+    setReplacingIndex(null);
+    setError(null);
+    setCurrentStep(QUESTIONS.length - 1);
+  };
+
+  const watchHref = (item: Recommendation) =>
+    item.type === "tv"
+      ? `/watch/${item.id}?type=tv&se=1&ep=1`
+      : `/watch/${item.id}?type=movie`;
+
+  const openInfo = (item: Recommendation) =>
+    setSelectedMovie({
+      id: item.id,
+      media_type: item.type,
+      title: item.type === "movie" ? item.title : undefined,
+      name: item.type === "tv" ? item.title : undefined,
+      overview: item.overview || "",
+      poster_path: item.poster_path,
+      backdrop_path: null,
+      vote_average: item.vote_average || 0,
+      vote_count: 0,
+      popularity: 0,
+      release_date:
+        item.type === "movie" && item.year ? `${item.year}-01-01` : undefined,
+      first_air_date:
+        item.type === "tv" && item.year ? `${item.year}-01-01` : undefined,
+    });
 
   const refindRecommendation = async (index: number) => {
     if (loading || replacingIndex !== null) return;
@@ -192,8 +301,8 @@ export default function AiPage() {
   return (
     <>
       <Header />
-      <main className="relative min-h-screen bg-black px-6 py-12 pt-24 md:px-12">
-        <div className="pointer-events-none absolute inset-0 z-0 opacity-75">
+      <main className="relative min-h-screen overflow-hidden bg-black px-4 pb-16 pt-24 md:px-8">
+        <div className="pointer-events-none absolute inset-0 z-0 opacity-60">
           <PixelBlast
             className="h-full w-full"
             color="#ff2b2b"
@@ -206,191 +315,315 @@ export default function AiPage() {
             edgeFade={0.35}
           />
         </div>
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-72 bg-gradient-to-b from-primary/15 to-transparent" />
 
-        <div className="relative z-10 mx-auto w-full max-w-7xl">
-          <section className="relative w-full p-6 text-center">
-            <FuzzyText
-              className="mx-auto max-w-[16ch] leading-tight sm:max-w-none"
-              fontSize="clamp(1.6rem, 8vw, 4rem)"
-              fontWeight={800}
-              color="#ffffff"
-              baseIntensity={0.08}
-              hoverIntensity={0.25}
-            >
-              Find what to watch faster
-            </FuzzyText>
+        <div className="relative z-10 mx-auto w-full max-w-5xl">
+          {/* Intro */}
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80 backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              AI Movie Match
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white md:text-5xl">
+              Find what to watch{" "}
+              <span className="bg-gradient-to-r from-primary to-pink-400 bg-clip-text text-transparent">
+                in seconds
+              </span>
+            </h1>
+            <p className="mx-auto mt-3 max-w-md text-sm text-white/60 md:text-base">
+              Answer {QUESTIONS.length} quick questions. Get 3 picks made for
+              your exact mood tonight.
+            </p>
+          </div>
 
-            <div className="mx-auto mt-8 w-full px-4">
-              {recommendations.length === 0 && (
-                <div className="mx-auto max-w-7xl space-y-6 rounded-xl border border-white/10 bg-black p-6">
-                  <div className="space-y-2">
-                    <p className="text-xs uppercase tracking-[0.2em] text-white/50">
-                      Question {Math.min(currentStep + 1, QUESTIONS.length)} of{" "}
-                      {QUESTIONS.length}
-                    </p>
-                    <div className="h-1 w-full rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all duration-500"
-                        style={{ width: `${progress}%` }}
-                      />
+          {/* ── Question flow ── */}
+          {!hasResults && !loading && activeQuestion && (
+            <div className="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-white/[0.03] p-5 shadow-2xl backdrop-blur-xl md:p-8">
+              {/* progress */}
+              <div className="mb-7 flex items-center gap-3">
+                {currentStep > 0 && (
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                    aria-label="Previous question"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                )}
+                <div className="flex flex-1 items-center gap-1.5">
+                  {QUESTIONS.map((q, i) => (
+                    <div
+                      key={q.id}
+                      className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
+                        i < currentStep
+                          ? "bg-primary"
+                          : i === currentStep
+                          ? "bg-primary/60"
+                          : "bg-white/10"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="shrink-0 text-xs font-medium tabular-nums text-white/50">
+                  {currentStep + 1}/{QUESTIONS.length}
+                </span>
+              </div>
+
+              {/* question */}
+              <div key={activeQuestion.id} className="animate-in fade-in duration-300">
+                <h2 className="text-2xl font-bold text-white md:text-3xl">
+                  {activeQuestion.title}
+                </h2>
+                <p className="mt-1.5 text-sm text-white/50">
+                  {activeQuestion.subtitle}
+                </p>
+
+                <div className={`mt-6 grid gap-3 ${gridClassFor(activeOptions.length)}`}>
+                  {activeOptions.map((option) => {
+                    const Icon = option.icon;
+                    const selected = answers[activeQuestion.id] === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handleAnswer(option.value)}
+                        className={`group flex flex-col items-start gap-3 rounded-xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${
+                          selected
+                            ? "border-primary bg-primary/10"
+                            : "border-white/10 bg-white/[0.04] hover:border-white/25 hover:bg-white/[0.08]"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
+                            selected
+                              ? "bg-primary text-white"
+                              : "bg-white/10 text-primary group-hover:bg-white/15"
+                          }`}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <span>
+                          <span className="block text-sm font-semibold text-white">
+                            {option.label}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-white/50">
+                            {option.description}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {error && (
+                <p className="mt-5 rounded-lg border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">
+                  {error}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── Loading ── */}
+          {loading && (
+            <div className="mx-auto max-w-5xl">
+              <div className="mb-6 flex flex-col items-center justify-center gap-2 text-center">
+                <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                <p className="text-sm font-medium text-white">
+                  Curating your 3 picks{vibeSummary ? "…" : "…"}
+                </p>
+                {vibeSummary && (
+                  <p className="text-xs text-white/50">{vibeSummary}</p>
+                )}
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]"
+                  >
+                    <div className="aspect-2/3 w-full animate-pulse bg-white/10" />
+                    <div className="space-y-2 p-4">
+                      <div className="h-4 w-3/4 animate-pulse rounded bg-white/10" />
+                      <div className="h-3 w-full animate-pulse rounded bg-white/10" />
+                      <div className="h-3 w-2/3 animate-pulse rounded bg-white/10" />
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-                  {activeQuestion && (
-                    <>
-                      <h2 className="text-xl font-semibold text-white md:text-2xl">
-                        {activeQuestion.title}
-                      </h2>
-                      <div className="grid gap-3">
-                        {activeQuestion.options.map((option) => (
-                          <Button
-                            key={option.value}
-                            variant="secondary"
-                            className="h-11 justify-start rounded-none bg-white/10 text-left text-white hover:bg-white/20"
-                            onClick={() => handleAnswer(option.value)}
-                            disabled={loading}
-                          >
-                            {option.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-
-                  {loading && (
-                    <div className="flex items-center justify-center gap-2 text-sm text-white/80">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Gemini is finding your top 3 picks...
-                    </div>
-                  )}
-
-                  {error && (
-                    <p className="rounded-md border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">
-                      {error}
+          {/* ── Results ── */}
+          {hasResults && !loading && (
+            <div className="mx-auto max-w-5xl">
+              <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end">
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                    <Popcorn className="h-4 w-4" />
+                    Your 3 picks for tonight
+                  </div>
+                  {vibeSummary && (
+                    <p className="mt-1 text-sm text-white/50">
+                      Because you wanted{" "}
+                      <span className="text-white/80">{vibeSummary}</span>
                     </p>
                   )}
                 </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="bg-white/10 text-white hover:bg-white/20"
+                    onClick={refineAnswers}
+                  >
+                    <Sparkles className="mr-1.5 h-4 w-4" />
+                    Tweak answers
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="bg-white/10 text-white hover:bg-white/20"
+                    onClick={resetFlow}
+                  >
+                    <RotateCcw className="mr-1.5 h-4 w-4" />
+                    Start over
+                  </Button>
+                </div>
+              </div>
+
+              {error && (
+                <p className="mb-4 rounded-lg border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">
+                  {error}
+                </p>
               )}
 
-              {recommendations.length > 0 && (
-                <div className="mx-auto max-w-7xl space-y-4 rounded-xl border border-white/10 bg-black/60 p-6 text-left">
-                  <div className="flex items-center gap-2 text-sm font-medium text-primary">
-                    <Sparkles className="h-4 w-4" />
-                    Your 3 mood picks
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    {recommendations.map((item, index) => (
-                      <article
-                        key={`${item.type}-${item.id}`}
-                        className="overflow-hidden rounded-lg border border-white/10 bg-black/50"
-                      >
-                        <div className="group/poster relative">
-                          {isImageMissing(item.poster_path) ? (
-                            <div className="aspect-2/3 w-full bg-[url('/bigflix.png')] bg-repeat bg-size-[120px_auto]" />
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {recommendations.map((item, index) => {
+                  const saved = isInList(item.id);
+                  const missing = isImageMissing(item.poster_path);
+                  return (
+                    <article
+                      key={`${item.type}-${item.id}`}
+                      className="group relative flex flex-col overflow-hidden rounded-xl border border-white/10 bg-zinc-950 shadow-lg shadow-black/50 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/20"
+                    >
+                      <div className="relative">
+                        {missing ? (
+                          <div className="aspect-2/3 w-full bg-[url('/bigflix.png')] bg-repeat bg-size-[120px_auto]" />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={imageUrl(item.poster_path)}
+                            alt={item.title}
+                            className="aspect-2/3 w-full object-cover"
+                            loading="lazy"
+                          />
+                        )}
+                        {missing && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-3 text-center text-xs font-semibold text-white">
+                            Image not available
+                          </div>
+                        )}
+
+                        {/* meta badges */}
+                        <div className="absolute left-2 top-2 flex items-center gap-1.5">
+                          <span className="rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur">
+                            {item.type === "tv" ? "Series" : "Movie"}
+                          </span>
+                          {item.vote_average > 0 && (
+                            <span className="flex items-center gap-1 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-amber-300 backdrop-blur">
+                              <Star className="h-3 w-3 fill-amber-300" />
+                              {item.vote_average.toFixed(1)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* swap */}
+                        <button
+                          type="button"
+                          onClick={() => refindRecommendation(index)}
+                          disabled={replacingIndex !== null}
+                          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-md bg-black/70 text-white backdrop-blur transition-colors hover:bg-black/90 disabled:cursor-not-allowed"
+                          aria-label="Swap this pick"
+                          title="Swap this pick"
+                        >
+                          {replacingIndex === index ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <img
-                              src={imageUrl(item.poster_path)}
-                              alt={item.title}
-                              className="aspect-2/3 w-full object-cover"
-                              loading="lazy"
-                            />
+                            <RefreshCw className="h-4 w-4" />
                           )}
-                          {isImageMissing(item.poster_path) && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-3 text-center text-xs font-semibold text-white">
-                              Image not available
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => refindRecommendation(index)}
-                            disabled={replacingIndex !== null}
-                            className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 p-3 text-center text-xs font-medium text-white opacity-0 transition-opacity group-hover/poster:opacity-100 disabled:cursor-not-allowed"
+                        </button>
+
+                        {replacingIndex === index && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-xs font-medium text-white">
+                            Finding another pick…
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="relative flex flex-1 flex-col gap-3 bg-gradient-to-b from-primary/15 via-primary/5 to-transparent p-4">
+                        <div>
+                          <h3 className="line-clamp-1 text-base font-semibold text-white">
+                            {item.title}
+                          </h3>
+                          <p className="text-xs text-white/45">
+                            {item.year || "—"}
+                          </p>
+                        </div>
+                        <p className="line-clamp-3 flex-1 text-sm leading-relaxed text-white/80">
+                          <Sparkles className="mr-1 inline h-3.5 w-3.5 text-primary" />
+                          {item.reason}
+                        </p>
+
+                        <div className="mt-1 grid grid-cols-2 gap-2">
+                          <Button
+                            size="sm"
+                            className="col-span-2"
+                            onClick={() => router.push(watchHref(item))}
                           >
-                            {replacingIndex === index ? (
+                            <Play className="mr-1.5 h-4 w-4 fill-current" />
+                            Watch now
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="bg-white/10 text-white hover:bg-white/20"
+                            onClick={() => openInfo(item)}
+                          >
+                            <Clapperboard className="mr-1.5 h-4 w-4" />
+                            Trailer
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="bg-white/10 text-white hover:bg-white/20 disabled:opacity-60"
+                            onClick={() => addItem({ id: item.id, type: item.type })}
+                            disabled={saved}
+                          >
+                            {saved ? (
                               <>
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                                Finding another pick...
+                                <BookmarkCheck className="mr-1.5 h-4 w-4 text-primary" />
+                                Saved
                               </>
                             ) : (
                               <>
-                                <RefreshCw className="h-5 w-5" />
-                                Refind something else
+                                <Bookmark className="mr-1.5 h-4 w-4" />
+                                Later
                               </>
                             )}
-                          </button>
-                        </div>
-                        <div className="space-y-2 p-3">
-                          <h3 className="line-clamp-1 text-sm font-semibold text-white">
-                            {item.title}
-                          </h3>
-                          <p className="line-clamp-2 text-xs text-white/70">
-                            {item.reason}
-                          </p>
-                          <div className="flex items-center justify-between pt-1 text-[11px] text-white/60">
-                            <span className="uppercase">{item.type}</span>
-                            <span>{item.year || "N/A"}</span>
-                          </div>
-                          <Button
-                            size="sm"
-                            className="mt-1 w-full rounded-none"
-                            onClick={() =>
-                              setSelectedMovie({
-                                id: item.id,
-                                media_type: item.type,
-                                title: item.type === "movie" ? item.title : undefined,
-                                name: item.type === "tv" ? item.title : undefined,
-                                overview: item.overview || "",
-                                poster_path: item.poster_path,
-                                backdrop_path: null,
-                                vote_average: item.vote_average || 0,
-                                vote_count: 0,
-                                popularity: 0,
-                                release_date:
-                                  item.type === "movie" && item.year
-                                    ? `${item.year}-01-01`
-                                    : undefined,
-                                first_air_date:
-                                  item.type === "tv" && item.year
-                                    ? `${item.year}-01-01`
-                                    : undefined,
-                              })
-                            }
-                          >
-                            Check trailer
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="w-full rounded-none bg-white/10 text-white hover:bg-white/20"
-                            onClick={() =>
-                              addItem({ id: item.id, type: item.type })
-                            }
-                            disabled={isInList(item.id)}
-                          >
-                            Watch Later
                           </Button>
                         </div>
-                      </article>
-                    ))}
-                  </div>
-                  <div className="flex justify-center pt-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="rounded-none border border-white/20 bg-white/10 text-white hover:bg-white/20"
-                      onClick={resetFlow}
-                    >
-                      <RotateCcw className="mr-2 h-4 w-4" />
-                      Restart
-                    </Button>
-                  </div>
-                </div>
-              )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             </div>
-
-          </section>
+          )}
         </div>
       </main>
+
       <InfoModal
         movie={selectedMovie}
         open={!!selectedMovie}

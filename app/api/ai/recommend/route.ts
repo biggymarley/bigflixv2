@@ -8,10 +8,11 @@ const TMDB_TOKEN = process.env.TMDB_TOKEN!;
 const ai = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
 
 type InputAnswers = {
-  mood?: string;
-  pace?: string;
   format?: string;
+  mood?: string;
+  company?: string;
   genre?: string;
+  discovery?: string;
 };
 
 type GeminiChoice = {
@@ -84,37 +85,49 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { mood, pace, format, genre } = body;
-  if (!mood || !pace || !format || !genre) {
+  const { format, mood, company, genre, discovery } = body;
+  if (!format || !mood || !company || !genre || !discovery) {
     return NextResponse.json(
-      { error: "Please answer all 4 questions." },
+      { error: "Please answer all the questions." },
       { status: 400 }
     );
   }
 
   const prompt = `
-You are a movie and TV recommender.
+You are an expert film and TV curator. Recommend titles a real person would love tonight.
 
 User profile:
-- mood: ${mood}
-- pace: ${pace}
-- format preference: ${format}
-- genre preference: ${genre}
+- wants to watch: ${format} (movie / tv / either)
+- mood / experience they want: ${mood}
+- who they are watching with: ${company}
+- genre they lean toward: ${genre}
+- discovery style: ${discovery}
+
+How to interpret "who they are watching with":
+- solo: anything fitting, can be niche or heavy.
+- partner: shared appeal, date-night friendly, avoid anything that kills the mood.
+- family: family-friendly and safe for kids, avoid graphic violence, sex, or disturbing content.
+- friends: fun, easy to follow together, crowd-pleasing, great for a group.
+
+How to interpret "discovery style":
+- popular: well-known, widely loved crowd-pleasers.
+- hidden: lesser-known high-quality gems, avoid obvious blockbusters everyone has seen.
+- acclaimed: critically acclaimed or award-winning, strong reviews.
+- surprise: unexpected but still a great fit for the rest of the profile.
 
 Return EXACTLY 3 recommendations in JSON with this shape only:
 {
   "titles": [
-    { "title": "string", "type": "movie or tv", "reason": "short reason under 18 words" }
+    { "title": "string", "type": "movie or tv", "reason": "short personal reason under 18 words, speak to the user" }
   ]
 }
 
 Rules:
-- type must be either "movie" or "tv"
-- if format preference is "movie", return 3 movies
-- if format preference is "tv", return 3 series
-- if format preference is "either", mix naturally based on mood/pace/genre
-- only return valid, known titles
-- do not include markdown or code fences
+- type must be either "movie" or "tv".
+- if "wants to watch" is "movie", return 3 movies; if "tv", return 3 series; if "either", mix naturally.
+- the 3 picks must be distinct and genuinely match the mood, genre and company.
+- only return real, known titles that exist on TMDB.
+- do not include markdown or code fences.
   `.trim();
 
   try {
@@ -126,7 +139,7 @@ Rules:
     }
 
     const geminiRes = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
