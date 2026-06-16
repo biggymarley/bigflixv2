@@ -62,7 +62,11 @@ export default function PlatformRail() {
         )}
 
         <div ref={emblaRef} className="overflow-hidden px-9 md:px-12">
-          <div className="flex gap-5 px-1 py-5 md:gap-8">
+          <div
+            className={`flex gap-5 px-1 py-5 md:gap-8 ${
+              !canPrev && !canNext ? "justify-center" : ""
+            }`}
+          >
             {platforms.map((platform) => (
               <Link
                 key={platform.slug}
