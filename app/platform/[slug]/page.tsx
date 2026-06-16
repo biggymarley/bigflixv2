@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import Header from "@/components/header";
 import PlatformView from "@/components/platform-view";
-import { PLATFORMS, getPlatform } from "@/lib/platforms";
+import { getPlatform, getPlatforms } from "@/lib/platforms";
 
-export function generateStaticParams() {
-  return PLATFORMS.map((p) => ({ slug: p.slug }));
+export async function generateStaticParams() {
+  const platforms = await getPlatforms();
+  return platforms.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({
@@ -13,7 +14,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const platform = getPlatform(slug);
+  const platform = await getPlatform(slug);
   return {
     title: platform ? `${platform.name} — BigFlix` : "Platform — BigFlix",
   };
@@ -25,7 +26,7 @@ export default async function PlatformPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const platform = getPlatform(slug);
+  const platform = await getPlatform(slug);
 
   if (!platform) {
     notFound();
