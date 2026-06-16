@@ -35,7 +35,6 @@ import {
 } from "lucide-react";
 import Header from "@/components/header";
 import InfoModal from "@/components/info-modal";
-import PixelBlast from "@/components/PixelBlast";
 import { Button } from "@/components/ui/button";
 import { useWatchLater } from "@/hooks/use-watch-later";
 import type { Movie } from "@/lib/types";
@@ -302,20 +301,9 @@ export default function AiPage() {
     <>
       <Header />
       <main className="relative min-h-screen overflow-hidden bg-black px-4 pb-16 pt-24 md:px-8">
-        <div className="pointer-events-none absolute inset-0 z-0 opacity-60">
-          <PixelBlast
-            className="h-full w-full"
-            color="#ff2b2b"
-            variant="square"
-            pixelSize={3}
-            patternScale={2.2}
-            patternDensity={1}
-            enableRipples={false}
-            speed={0.45}
-            edgeFade={0.35}
-          />
-        </div>
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-72 bg-gradient-to-b from-primary/15 to-transparent" />
+        {/* Red → black → red ambient wash */}
+        <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-primary/25 via-black to-primary/20" />
+        <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(229,9,20,0.22),transparent_70%)]" />
 
         <div className="relative z-10 mx-auto w-full max-w-5xl">
           {/* Intro */}

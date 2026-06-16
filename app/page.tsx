@@ -12,9 +12,10 @@ import MediaRow from "@/components/media-row";
 import PlatformRail from "@/components/platform-rail";
 import SearchAutocomplete from "@/components/search-autocomplete";
 import type { Movie, MovieDetails } from "@/lib/types";
-import SpotlightCard from "@/components/SpotlightCard";
 import { useWatchHistory } from "@/hooks/use-watch-history";
 import { useWatchLater } from "@/hooks/use-watch-later";
+import { useStoredTitleDetails } from "@/hooks/use-stored-title-details";
+import AdGuideCard from "@/components/ad-guide-card";
 
 type HistoryCard = MovieDetails & {
   rowType: "movie" | "tv";
@@ -30,11 +31,26 @@ export default function Home() {
   const [trendingTv, setTrendingTv] = useState<Movie[]>([]);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
-  const [historyTitles, setHistoryTitles] = useState<HistoryCard[]>([]);
-  const [laterTitles, setLaterTitles] = useState<LaterCard[]>([]);
   const router = useRouter();
   const { items: historyItems } = useWatchHistory();
   const { items: laterItems } = useWatchLater();
+
+  const { titles: historyTitles } = useStoredTitleDetails(
+    historyItems,
+    (result, item): HistoryCard => ({
+      ...result,
+      rowType: item?.type || "movie",
+      season: item?.season,
+      episode: item?.episode,
+    })
+  );
+  const { titles: laterTitles } = useStoredTitleDetails(
+    laterItems,
+    (result, item): LaterCard => ({
+      ...result,
+      rowType: item?.type || "movie",
+    })
+  );
 
   useEffect(() => {
     Promise.all([
@@ -50,54 +66,6 @@ export default function Home() {
         setTrendingTv([]);
       });
   }, []);
-
-  useEffect(() => {
-    if (historyItems.length === 0) {
-      setHistoryTitles([]);
-      return;
-    }
-    Promise.all(
-      historyItems.map((item) =>
-        fetch(`/api/tmdb/${item.type === "tv" ? "tv" : "movie"}/${item.id}`).then((r) =>
-          r.json()
-        )
-      )
-    )
-      .then((results) => {
-        setHistoryTitles(
-          results.filter(Boolean).map((result, index) => ({
-            ...result,
-            rowType: historyItems[index]?.type || "movie",
-            season: historyItems[index]?.season,
-            episode: historyItems[index]?.episode,
-          })) as HistoryCard[]
-        );
-      })
-      .catch(() => setHistoryTitles([]));
-  }, [historyItems]);
-
-  useEffect(() => {
-    if (laterItems.length === 0) {
-      setLaterTitles([]);
-      return;
-    }
-    Promise.all(
-      laterItems.map((item) =>
-        fetch(`/api/tmdb/${item.type === "tv" ? "tv" : "movie"}/${item.id}`).then((r) =>
-          r.json()
-        )
-      )
-    )
-      .then((results) => {
-        setLaterTitles(
-          results.filter(Boolean).map((result, index) => ({
-            ...result,
-            rowType: laterItems[index]?.type || "movie",
-          })) as LaterCard[]
-        );
-      })
-      .catch(() => setLaterTitles([]));
-  }, [laterItems]);
 
   const handleSearch = () => {
     if (!query.trim()) {
@@ -116,6 +84,20 @@ export default function Home() {
     setSelectedMovie(movie);
     setInfoModalOpen(true);
   };
+
+  const trendingCards = (
+    list: Movie[],
+    keyPrefix: string,
+    mediaType: "movie" | "tv"
+  ) =>
+    list.map((m, i) => ({
+      key: `${keyPrefix}-${m.id}`,
+      poster_path: m.poster_path,
+      title: m.title || m.name || "Untitled",
+      rank: i + 1,
+      meta: m.vote_average ? m.vote_average.toFixed(1) : undefined,
+      onClick: () => handleTrendingInfoClick({ ...m, media_type: mediaType }),
+    }));
 
   return (
     <div className="min-h-screen bg-black">
@@ -301,26 +283,12 @@ export default function Home() {
         <MediaRow
           title="Trending Movies"
           seeMoreHref="/discover/movies"
-          cards={trendingMovies.map((m, i) => ({
-            key: `tm-${m.id}`,
-            poster_path: m.poster_path,
-            title: m.title || m.name || "Untitled",
-            rank: i + 1,
-            meta: m.vote_average ? m.vote_average.toFixed(1) : undefined,
-            onClick: () => handleTrendingInfoClick({ ...m, media_type: "movie" }),
-          }))}
+          cards={trendingCards(trendingMovies, "tm", "movie")}
         />
         <MediaRow
           title="Trending TV Shows"
           seeMoreHref="/discover/series"
-          cards={trendingTv.map((m, i) => ({
-            key: `tt-${m.id}`,
-            poster_path: m.poster_path,
-            title: m.title || m.name || "Untitled",
-            rank: i + 1,
-            meta: m.vote_average ? m.vote_average.toFixed(1) : undefined,
-            onClick: () => handleTrendingInfoClick({ ...m, media_type: "tv" }),
-          }))}
+          cards={trendingCards(trendingTv, "tt", "tv")}
         />
       </div>
       {/* ── Ad-Free Guide ── */}
@@ -340,71 +308,41 @@ export default function Home() {
           </div>
 
           <div className="grid gap-5 md:grid-cols-2">
-            {/* Brave */}
-            <SpotlightCard
-              className="border border-white/[0.08] bg-gradient-to-br from-white/[0.05] to-white/[0.01]"
-              spotlightColor="rgba(255, 255, 255, 0.08)"
-            >
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 p-2 ring-1 ring-white/10">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/brave.svg" alt="Brave" className="h-full w-full" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-white">Option 1 — Brave Browser</h3>
-                    <p className="text-xs text-white/50">Built-in ad &amp; tracker blocker, zero setup</p>
-                  </div>
-                </div>
-                <ol className="space-y-2 text-sm text-white/70">
-                  <li className="flex gap-2"><span className="shrink-0 font-bold text-primary">1.</span>Go to <span className="font-semibold text-white">brave.com</span> and download Brave Browser.</li>
-                  <li className="flex gap-2"><span className="shrink-0 font-bold text-primary">2.</span>Install and open it — ads are already blocked by default.</li>
-                  <li className="flex gap-2"><span className="shrink-0 font-bold text-primary">3.</span>Head back to BigFlix and enjoy a clean, uninterrupted experience.</li>
-                </ol>
-                <a
-                  href="https://brave.com/download"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 inline-flex w-fit items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10"
-                >
-                  Download Brave
-                  <ChevronRight className="h-4 w-4" />
-                </a>
-              </div>
-            </SpotlightCard>
+            <AdGuideCard
+              iconSrc="/brave.svg"
+              iconAlt="Brave"
+              title="Option 1 — Brave Browser"
+              subtitle="Built-in ad & tracker blocker, zero setup"
+              href="https://brave.com/download"
+              ctaLabel="Download Brave"
+              steps={[
+                <>
+                  Go to <span className="font-semibold text-white">brave.com</span>{" "}
+                  and download Brave Browser.
+                </>,
+                "Install and open it — ads are already blocked by default.",
+                "Head back to BigFlix and enjoy a clean, uninterrupted experience.",
+              ]}
+            />
 
-            {/* uBlock Origin */}
-            <SpotlightCard
-              className="border border-white/[0.08] bg-gradient-to-br from-white/[0.05] to-white/[0.01]"
-              spotlightColor="rgba(255, 255, 255, 0.08)"
-            >
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 p-2 ring-1 ring-white/10">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/ublock-origin.svg" alt="uBlock Origin" className="h-full w-full" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-white">Option 2 — uBlock Origin</h3>
-                    <p className="text-xs text-white/50">Lightweight extension, works on any browser</p>
-                  </div>
-                </div>
-                <ol className="space-y-2 text-sm text-white/70">
-                  <li className="flex gap-2"><span className="shrink-0 font-bold text-primary">1.</span>Open Chrome, Firefox, or Edge and go to your browser&apos;s extension store.</li>
-                  <li className="flex gap-2"><span className="shrink-0 font-bold text-primary">2.</span>Search for <span className="font-semibold text-white">uBlock Origin</span> and click <span className="font-semibold text-white">Add to browser</span>.</li>
-                  <li className="flex gap-2"><span className="shrink-0 font-bold text-primary">3.</span>Done. Every ad across BigFlix and the rest of the web is now blocked.</li>
-                </ol>
-                <a
-                  href="https://ublockorigin.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 inline-flex w-fit items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10"
-                >
-                  Get uBlock Origin
-                  <ChevronRight className="h-4 w-4" />
-                </a>
-              </div>
-            </SpotlightCard>
+            <AdGuideCard
+              iconSrc="/ublock-origin.svg"
+              iconAlt="uBlock Origin"
+              title="Option 2 — uBlock Origin"
+              subtitle="Lightweight extension, works on any browser"
+              href="https://ublockorigin.com"
+              ctaLabel="Get uBlock Origin"
+              steps={[
+                "Open Chrome, Firefox, or Edge and go to your browser's extension store.",
+                <>
+                  Search for{" "}
+                  <span className="font-semibold text-white">uBlock Origin</span>{" "}
+                  and click{" "}
+                  <span className="font-semibold text-white">Add to browser</span>.
+                </>,
+                "Done. Every ad across BigFlix and the rest of the web is now blocked.",
+              ]}
+            />
           </div>
         </div>
       </section>

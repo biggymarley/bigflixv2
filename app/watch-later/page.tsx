@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Compass } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,6 +9,7 @@ import Header from "@/components/header";
 import MovieCard from "@/components/movie-card";
 import InfoModal from "@/components/info-modal";
 import { useWatchLater } from "@/hooks/use-watch-later";
+import { useStoredTitleDetails } from "@/hooks/use-stored-title-details";
 import type { Movie, MovieDetails } from "@/lib/types";
 
 type SavedTitle = MovieDetails & { savedType: "movie" | "tv" };
@@ -16,38 +17,16 @@ type Tab = "all" | "movie" | "tv";
 
 export default function WatchLaterPage() {
   const { items } = useWatchLater();
-  const [savedTitles, setSavedTitles] = useState<SavedTitle[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [tab, setTab] = useState<Tab>("all");
 
-  useEffect(() => {
-    if (items.length === 0) {
-      setSavedTitles([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    Promise.all(
-      items.map((item) =>
-        fetch(
-          `/api/tmdb/${item.type === "tv" ? "tv" : "movie"}/${item.id}`
-        ).then((res) => res.json())
-      )
-    )
-      .then((results) => {
-        const normalized = results
-          .filter(Boolean)
-          .map((result, index) => ({
-            ...result,
-            savedType: items[index]?.type || "movie",
-          })) as SavedTitle[];
-        setSavedTitles(normalized);
-      })
-      .catch(() => setSavedTitles([]))
-      .finally(() => setLoading(false));
-  }, [items]);
+  const { titles: savedTitles, loading } = useStoredTitleDetails(
+    items,
+    (result, item): SavedTitle => ({
+      ...result,
+      savedType: item?.type || "movie",
+    })
+  );
 
   const movieCount = useMemo(
     () => savedTitles.filter((t) => t.savedType === "movie").length,

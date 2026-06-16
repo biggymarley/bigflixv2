@@ -2,7 +2,7 @@ const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_API_KEY = process.env.TMDB_API_KEY!;
 const TMDB_TOKEN = process.env.TMDB_TOKEN!;
 
-export const IMAGES_BASE_URL = "https://image.tmdb.org/t/p";
+const IMAGES_BASE_URL = "https://image.tmdb.org/t/p";
 
 export function imageUrl(path: string | null, size = "w500") {
   if (!path) return "/bigflix.png";

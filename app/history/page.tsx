@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import Header from "@/components/header";
 import { useWatchHistory } from "@/hooks/use-watch-history";
+import { useStoredTitleDetails } from "@/hooks/use-stored-title-details";
 import { imageUrl } from "@/lib/tmdb";
 import type { MovieDetails } from "@/lib/types";
 
@@ -20,40 +20,16 @@ type HistoryTitle = MovieDetails & {
 export default function HistoryPage() {
   const router = useRouter();
   const { items, clearHistory } = useWatchHistory();
-  const [historyTitles, setHistoryTitles] = useState<HistoryTitle[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (items.length === 0) {
-      setHistoryTitles([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    Promise.all(
-      items.map((item) =>
-        fetch(`/api/tmdb/${item.type === "tv" ? "tv" : "movie"}/${item.id}`).then((res) =>
-          res.json()
-        )
-      )
-    )
-      .then((results) => {
-        const normalized = results
-          .filter(Boolean)
-          .map((result, index) => ({
-            ...result,
-            historyType: items[index]?.type || "movie",
-            watchedAt: items[index]?.watchedAt || Date.now(),
-            season: items[index]?.season,
-            episode: items[index]?.episode,
-          })) as HistoryTitle[];
-
-        setHistoryTitles(normalized);
-      })
-      .catch(() => setHistoryTitles([]))
-      .finally(() => setLoading(false));
-  }, [items]);
+  const { titles: historyTitles, loading } = useStoredTitleDetails(
+    items,
+    (result, item): HistoryTitle => ({
+      ...result,
+      historyType: item?.type || "movie",
+      watchedAt: item?.watchedAt || Date.now(),
+      season: item?.season,
+      episode: item?.episode,
+    })
+  );
 
   return (
     <div className="min-h-screen bg-black">
