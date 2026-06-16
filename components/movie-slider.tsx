@@ -1,12 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import MovieCard from "@/components/movie-card";
+import MediaRow, { type RowCard } from "@/components/media-row";
 import type { Movie, SliderMode } from "@/lib/types";
 
 interface MovieSliderProps {
@@ -14,18 +10,32 @@ interface MovieSliderProps {
   onInfoClick?: (movie: Movie) => void;
 }
 
+function SkeletonRow({ title }: { title: string }) {
+  return (
+    <section className="relative z-10 px-6 pb-12 md:px-12">
+      <div className="mb-3">
+        <h2 className="text-xl font-bold tracking-tight text-white md:text-2xl">
+          {title}
+        </h2>
+      </div>
+      <div className="flex gap-3 overflow-hidden px-9 py-4 md:gap-5 md:px-12">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton
+            key={i}
+            className="aspect-2/3 shrink-0 basis-[42%] rounded-xl sm:basis-[29%] md:basis-[22%] lg:basis-[16.5%]"
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function MovieSlider({ mode, onInfoClick }: MovieSliderProps) {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
-  const [emblaRef, emblaApi] = useEmblaCarousel({
-    align: "start",
-    slidesToScroll: 3,
-    containScroll: "trimSnaps",
-    dragFree: true,
-  });
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(true);
-  const discoverType = mode.type === "movie" ? "movies" : "series";
+
+  const type = mode.type || "movie";
+  const discoverType = type === "movie" ? "movies" : "series";
   const isCategorySlider = !!mode.params?.with_genres;
   const seeMoreHref = mode.params?.with_genres
     ? `/discover/${discoverType}/category/${mode.params.with_genres}`
@@ -51,79 +61,24 @@ export default function MovieSlider({ mode, onInfoClick }: MovieSliderProps) {
     fetchMovies();
   }, [mode]);
 
-  const onSelect = useCallback(() => {
-    if (!emblaApi) return;
-    setCanScrollPrev(emblaApi.canScrollPrev());
-    setCanScrollNext(emblaApi.canScrollNext());
-  }, [emblaApi]);
+  if (loading) {
+    return <SkeletonRow title={mode.label} />;
+  }
 
-  useEffect(() => {
-    if (!emblaApi) return;
-    onSelect();
-    emblaApi.on("select", onSelect);
-    emblaApi.on("reInit", onSelect);
-  }, [emblaApi, onSelect]);
+  const cards: RowCard[] = movies.map((movie) => ({
+    key: String(movie.id),
+    poster_path: movie.poster_path,
+    title: movie.title || movie.name || "Untitled",
+    year: (movie.release_date || movie.first_air_date)?.split("-")[0] || undefined,
+    meta: movie.vote_average ? movie.vote_average.toFixed(1) : undefined,
+    onClick: () => onInfoClick?.({ ...movie, media_type: type }),
+  }));
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2 px-4 md:px-0">
-        <h2 className="text-lg font-semibold text-white">{mode.label}</h2>
-        {isCategorySlider && (
-          <Link
-            href={seeMoreHref}
-            className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition-all hover:gap-1.5 hover:text-primary/90"
-          >
-            See more
-            <ChevronRight className="h-4 w-4" />
-          </Link>
-        )}
-      </div>
-      <div className="group relative">
-        {canScrollPrev && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-md bg-[#141414]/85 px-2.5 py-3 text-white opacity-0 transition-opacity hover:bg-[#141414] group-hover:opacity-100 md:flex"
-            onClick={() => emblaApi?.scrollPrev()}
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </Button>
-        )}
-
-        <div ref={emblaRef} className="overflow-hidden">
-          <div className="flex gap-2 px-12 md:px-14">
-            {loading
-              ? Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="w-[140px] flex-shrink-0 md:w-[180px]">
-                    <Skeleton className="aspect-[2/3] w-full rounded-md" />
-                  </div>
-                ))
-              : movies.map((movie) => (
-                  <div
-                    key={movie.id}
-                    className="w-[140px] flex-shrink-0 md:w-[180px]"
-                  >
-                    <MovieCard
-                      movie={movie}
-                      mediaType={mode.type || "movie"}
-                      onInfoClick={onInfoClick}
-                    />
-                  </div>
-                ))}
-          </div>
-        </div>
-
-        {canScrollNext && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-md bg-[#141414]/85 px-2.5 py-3 text-white opacity-0 transition-opacity hover:bg-[#141414] group-hover:opacity-100 md:flex"
-            onClick={() => emblaApi?.scrollNext()}
-          >
-            <ChevronRight className="h-6 w-6" />
-          </Button>
-        )}
-      </div>
-    </div>
+    <MediaRow
+      title={mode.label}
+      seeMoreHref={isCategorySlider ? seeMoreHref : undefined}
+      cards={cards}
+    />
   );
 }

@@ -1,32 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import useEmblaCarousel from "embla-carousel-react";
 import {
   ChevronRight,
-  ChevronLeft,
   Clapperboard,
   Globe2,
   BadgeDollarSign,
   ShieldBan,
   Sparkles,
-  BrainCircuit,
-  ListChecks,
   ShieldCheck,
   Download,
   Zap,
-  Play,
-  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Header from "@/components/header";
 import InfoModal from "@/components/info-modal";
+import MediaRow from "@/components/media-row";
+import PlatformRail from "@/components/platform-rail";
+import SearchAutocomplete from "@/components/search-autocomplete";
 import type { Movie, MovieDetails } from "@/lib/types";
-import { imageUrl, isImageMissing } from "@/lib/tmdb";
 import SpotlightCard from "@/components/SpotlightCard";
 import { useWatchHistory } from "@/hooks/use-watch-history";
 import { useWatchLater } from "@/hooks/use-watch-later";
@@ -136,7 +131,7 @@ export default function Home() {
     <div className="min-h-screen bg-black">
       <Header />
       {/* ── Hero Section ── */}
-      <div className="relative flex min-h-160 flex-col">
+      <div className="relative z-30 flex min-h-160 flex-col">
         <Image
           src="/bg.jpg"
           alt="Background"
@@ -164,29 +159,10 @@ export default function Home() {
             </p>
 
             <div className="mx-auto w-full max-w-lg pt-2">
-              <div className="flex gap-0">
-                <Input
-                  placeholder="Search movies, TV shows, people..."
-                  value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    if (error) setError("");
-                  }}
-                  onKeyDown={handleKeyDown}
-                  className="h-14 rounded-r-none border-white/20 bg-black/60 px-5 text-base text-white placeholder:text-white/40 focus:border-white/40 md:h-16 md:text-lg"
-                />
-                <Button
-                  onClick={handleSearch}
-                  size="lg"
-                  className="h-14 gap-1.5 rounded-l-none px-6 text-base font-semibold md:h-16 md:px-8 md:text-xl"
-                >
-                  Search
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </div>
-              {error && (
-                <p className="mt-2 text-left text-sm text-red-400">{error}</p>
-              )}
+              <SearchAutocomplete
+                variant="hero"
+                onSelect={handleTrendingInfoClick}
+              />
             </div>
 
             <div className="flex flex-col items-center gap-3 pt-1">
@@ -208,7 +184,7 @@ export default function Home() {
         </div>
 
         {/* Arc glow at the bottom */}
-        <div className="pointer-events-none absolute -bottom-1 left-0 right-0 z-10 h-22 overflow-hidden">
+        <div className="pointer-events-none absolute -bottom-1 left-0 right-0 z-1 h-22 overflow-hidden">
           <div
             className="absolute left-[-50%] top-0 h-full w-[200%]"
             style={{
@@ -223,10 +199,13 @@ export default function Home() {
 
      
 
+      {/* ── Browse by platform ── */}
+      <PlatformRail />
+
       {/* ── AI Movie Match (top priority) ── */}
-      <section className="relative bg-black px-6 pb-12 pt-12 md:px-12 md:pb-16 md:pt-16">
+      <section className="relative bg-black px-6 pb-12 pt-20 md:px-12 md:pb-16 md:pt-40">
         <div className="mx-auto max-w-6xl">
-          <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1c1026] via-[#14121f] to-[#0b1322] shadow-2xl shadow-black/40">
+          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#1c1026] via-[#14121f] to-[#0b1322] shadow-2xl shadow-black/40">
             <div className="grid items-stretch gap-8 p-6 md:p-10 lg:grid-cols-[1.15fr_1fr]">
               {/* Pitch */}
               <div className="space-y-5">
@@ -276,37 +255,19 @@ export default function Home() {
                 </Button>
               </div>
 
-              {/* Feature cards */}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-                <SpotlightCard
-                  className="!rounded-2xl !p-5 border-white/10 bg-[#111111]"
-                  spotlightColor="rgba(64, 97, 231, 0.25)"
-                >
-                  <div className="space-y-2.5">
-                    <BrainCircuit className="h-6 w-6 text-primary" />
-                    <h3 className="text-base font-semibold text-white">
-                      Understands your taste
-                    </h3>
-                    <p className="text-sm text-white/60">
-                      Mood, company, genre and discovery style in one quick flow.
-                    </p>
-                  </div>
-                </SpotlightCard>
-
-                <SpotlightCard
-                  className="!rounded-2xl !p-5 border-white/10 bg-[#111111]"
-                  spotlightColor="rgba(229, 9, 127, 0.22)"
-                >
-                  <div className="space-y-2.5">
-                    <ListChecks className="h-6 w-6 text-primary" />
-                    <h3 className="text-base font-semibold text-white">
-                      A focused 3-title shortlist
-                    </h3>
-                    <p className="text-sm text-white/60">
-                      Three picks instead of endless lists — swap any you don&apos;t like.
-                    </p>
-                  </div>
-                </SpotlightCard>
+              {/* AI assistant avatar */}
+              <div className="relative flex min-h-[360px] items-end justify-center lg:min-h-0">
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="h-56 w-56 rounded-full bg-primary/20 blur-3xl" />
+                </div>
+                <Image
+                  src="/ai-assistantt.png"
+                  alt="BigFlix AI assistant"
+                  width={640}
+                  height={800}
+                  className="relative h-auto w-full max-w-[480px] drop-shadow-2xl lg:absolute lg:-bottom-10 lg:left-1/2 lg:h-[170%] lg:w-auto lg:max-w-none lg:-translate-x-1/2"
+                  priority
+                />
               </div>
             </div>
           </div>
@@ -551,166 +512,6 @@ export default function Home() {
   );
 }
 
-type RowCard = {
-  key: string;
-  poster_path: string | null;
-  title: string;
-  onClick: () => void;
-  rank?: number;
-  meta?: string;
-};
-
-function PosterCard({
-  poster_path,
-  title,
-  onClick,
-  rank,
-  meta,
-}: Omit<RowCard, "key">) {
-  const missing = isImageMissing(poster_path);
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group/card relative shrink-0 basis-[42%] sm:basis-[29%] md:basis-[22%] lg:basis-[16.5%]"
-    >
-      <div className="relative z-10 aspect-2/3 w-full overflow-hidden rounded-xl ring-1 ring-white/10 transition-all duration-300 group-hover/card:-translate-y-1 group-hover/card:ring-2 group-hover/card:ring-primary/60 group-hover/card:shadow-2xl group-hover/card:shadow-primary/25">
-        {missing ? (
-          <div className="absolute inset-0 bg-[url('/bigflix.png')] bg-repeat bg-size-[120px_auto]" />
-        ) : (
-          <Image
-            src={imageUrl(poster_path)}
-            alt={title}
-            fill
-            className="object-cover transition-transform duration-500 group-hover/card:scale-110"
-            sizes="(max-width: 640px) 42vw, (max-width: 1024px) 22vw, 16vw"
-          />
-        )}
-        {missing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-2 text-center text-xs font-semibold text-white">
-            Image not available
-          </div>
-        )}
-
-        {/* hover veil */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/25 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
-
-        {/* play button */}
-        <span className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 scale-75 items-center justify-center rounded-full bg-primary text-white opacity-0 shadow-lg shadow-black/40 transition-all duration-300 group-hover/card:scale-100 group-hover/card:opacity-100">
-          <Play className="h-5 w-5 translate-x-px fill-current" />
-        </span>
-
-        {/* info */}
-        <div className="absolute inset-x-0 bottom-0 translate-y-1 p-2.5 opacity-0 transition-all duration-300 group-hover/card:translate-y-0 group-hover/card:opacity-100">
-          <p className="line-clamp-2 text-xs font-semibold leading-tight text-white">
-            {title}
-          </p>
-          {meta && (
-            <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-amber-300">
-              <Star className="h-3 w-3 fill-amber-300" />
-              {meta}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* rank number */}
-      {rank !== undefined && (
-        <span
-          className="pointer-events-none absolute -bottom-2 -left-3 z-20 select-none text-[4rem] font-extrabold leading-none text-black md:-left-4 md:text-[5.5rem]"
-          style={{ WebkitTextStroke: "2px #fff" }}
-        >
-          {rank}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function MediaRow({
-  title,
-  seeMoreHref,
-  cards,
-}: {
-  title: string;
-  seeMoreHref: string;
-  cards: RowCard[];
-}) {
-  const [emblaRef, emblaApi] = useEmblaCarousel({
-    align: "start",
-    slidesToScroll: 2,
-    containScroll: "trimSnaps",
-    dragFree: true,
-  });
-  const [canPrev, setCanPrev] = useState(false);
-  const [canNext, setCanNext] = useState(true);
-
-  const onSelect = useCallback(() => {
-    if (!emblaApi) return;
-    setCanPrev(emblaApi.canScrollPrev());
-    setCanNext(emblaApi.canScrollNext());
-  }, [emblaApi]);
-
-  useEffect(() => {
-    if (!emblaApi) return;
-    onSelect();
-    emblaApi.on("select", onSelect);
-    emblaApi.on("reInit", onSelect);
-  }, [emblaApi, onSelect]);
-
-  if (cards.length === 0) return null;
-
-  return (
-    <section className="relative z-10 bg-black px-6 pb-12 md:px-12">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-xl font-bold tracking-tight text-white md:text-2xl">
-          {title}
-        </h2>
-        <Link
-          href={seeMoreHref}
-          className="group/see inline-flex items-center gap-1 text-sm font-semibold text-white/60 transition-colors hover:text-primary"
-        >
-          See all
-          <ChevronRight className="h-4 w-4 transition-transform group-hover/see:translate-x-0.5" />
-        </Link>
-      </div>
-
-      <div className="group relative">
-        {/* edge fades */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-black to-transparent md:w-12" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-black to-transparent md:w-12" />
-
-        {canPrev && (
-          <button
-            onClick={() => emblaApi?.scrollPrev()}
-            aria-label="Scroll left"
-            className="absolute left-1 top-[42%] z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/70 text-white opacity-0 ring-1 ring-white/15 backdrop-blur transition-all hover:bg-primary hover:ring-primary group-hover:opacity-100"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-        )}
-
-        <div ref={emblaRef} className="overflow-hidden px-9 md:px-12">
-          <div className="flex gap-3 py-4 md:gap-5">
-            {cards.map(({ key, ...card }) => (
-              <PosterCard key={key} {...card} />
-            ))}
-          </div>
-        </div>
-
-        {canNext && (
-          <button
-            onClick={() => emblaApi?.scrollNext()}
-            aria-label="Scroll right"
-            className="absolute right-1 top-[42%] z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/70 text-white opacity-0 ring-1 ring-white/15 backdrop-blur transition-all hover:bg-primary hover:ring-primary group-hover:opacity-100"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </button>
-        )}
-      </div>
-    </section>
-  );
-}
 
 function ReasonCard({
   icon,

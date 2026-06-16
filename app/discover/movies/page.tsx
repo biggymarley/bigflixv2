@@ -45,7 +45,7 @@ export default async function DiscoverMoviesPage() {
   const allModes = [...baseModes, ...genreModes];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-black">
       <Header />
       <HeroSection movie={featuredMovie} mediaType="movie" trailerKey={trailerKey} />
       <div className="mx-auto  px-4 pt-8">

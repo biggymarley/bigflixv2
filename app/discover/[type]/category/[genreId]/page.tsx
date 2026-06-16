@@ -33,7 +33,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-black">
       <Header />
       <div className="mx-auto max-w-7xl px-4 pb-12 pt-24">
         <h1 className="mb-2 text-2xl font-bold text-white">{selectedGenre.name}</h1>

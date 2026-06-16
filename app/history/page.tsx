@@ -56,7 +56,7 @@ export default function HistoryPage() {
   }, [items]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-black">
       <Header />
       <div className="mx-auto max-w-7xl px-4 pb-12 pt-24">
         <div className="mb-6 flex items-center justify-between gap-3">

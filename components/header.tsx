@@ -3,28 +3,49 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Menu, Search, Sparkles, X } from "lucide-react";
+import { usePathname } from "next/navigation";
+import {
+  Bookmark,
+  ChevronRight,
+  Clock,
+  Film,
+  Menu,
+  Sparkles,
+  Tv,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import type { Genre } from "@/lib/types";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import InfoModal from "@/components/info-modal";
+import SearchAutocomplete from "@/components/search-autocomplete";
+import type { Genre, Movie } from "@/lib/types";
 
-const navLinks = [
-  { label: "AI Picks", path: "/ai", highlight: true },
-  { label: "Movies", path: "/discover/movies" },
-  { label: "TV Shows", path: "/discover/series" },
-  { label: "Watch Later", path: "/watch-later" },
-  { label: "History", path: "/history" },
+type NavLink = {
+  label: string;
+  path: string;
+  icon: LucideIcon;
+  highlight?: boolean;
+};
+
+const navLinks: NavLink[] = [
+  { label: "AI Picks", path: "/ai", icon: Sparkles, highlight: true },
+  { label: "Movies", path: "/discover/movies", icon: Film },
+  { label: "TV Shows", path: "/discover/series", icon: Tv },
+  { label: "Watch Later", path: "/watch-later", icon: Bookmark },
+  { label: "History", path: "/history", icon: Clock },
 ];
 
 export default function Header() {
-  const [query, setQuery] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [genresOpen, setGenresOpen] = useState(false);
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const pathname = usePathname();
-  const router = useRouter();
   const genresMenuRef = useRef<HTMLDivElement | null>(null);
 
   const filteredLinks = navLinks.filter((link) => link.path !== pathname);
@@ -33,17 +54,6 @@ export default function Header() {
     if (pathname.startsWith("/discover/series")) return "series";
     return null;
   }, [pathname]);
-
-  const handleSearch = () => {
-    if (query.trim()) {
-      router.push(`/browse/${encodeURIComponent(query.trim())}`);
-      setQuery("");
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleSearch();
-  };
 
   useEffect(() => {
     if (!discoverType) {
@@ -140,25 +150,8 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="hidden items-center gap-1 sm:flex">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search movies & shows..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="w-48 border-white/20 bg-black/50 pl-9 text-sm text-white placeholder:text-white/40 focus:w-64 transition-all lg:w-56 lg:focus:w-72"
-              />
-              {query && (
-                <button
-                  onClick={() => setQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
+          <div className="hidden sm:block">
+            <SearchAutocomplete onSelect={setSelectedMovie} />
           </div>
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -167,50 +160,91 @@ export default function Header() {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-72 border-white/10 bg-[#141414]">
-              <div className="mt-8 flex flex-col gap-2">
-                <div className="relative mb-4">
-                  <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search..."
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      handleKeyDown(e);
-                      if (e.key === "Enter") setMobileOpen(false);
-                    }}
-                    className="border-white/20 bg-black/50 pl-9 text-white placeholder:text-white/40"
+            <SheetContent
+              side="right"
+              className="w-80 gap-0 border-l border-white/10 bg-gradient-to-b from-[#17171d] via-[#101015] to-[#08080b] p-0"
+            >
+              <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+
+              {/* Brand header */}
+              <div className="flex items-center border-b border-white/10 px-5 py-4">
+                <Image
+                  src="/bigflix.png"
+                  alt="BigFlix"
+                  width={140}
+                  height={38}
+                  className="h-7 w-auto"
+                />
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 py-5">
+                {/* Search */}
+                <div className="mb-6">
+                  <SearchAutocomplete
+                    variant="mobile"
+                    onSelect={setSelectedMovie}
+                    onSubmit={() => setMobileOpen(false)}
                   />
                 </div>
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.path}
-                    href={link.path}
-                    onClick={() => setMobileOpen(false)}
-                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
-                      pathname === link.path
-                        ? "bg-primary/20 text-primary"
-                        : link.highlight
-                        ? "border border-primary/40 bg-primary/10 font-semibold text-white hover:bg-primary/20"
-                        : "text-white/80 hover:bg-white/5 hover:text-white"
-                    }`}
-                  >
-                    {link.highlight && <Sparkles className="h-4 w-4 text-primary" />}
-                    {link.label}
-                  </Link>
-                ))}
+
+                {/* Menu */}
+                <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
+                  Menu
+                </p>
+                <nav className="flex flex-col gap-1">
+                  {navLinks.map((link) => {
+                    const Icon = link.icon;
+                    const active = pathname === link.path;
+                    return (
+                      <Link
+                        key={link.path}
+                        href={link.path}
+                        onClick={() => setMobileOpen(false)}
+                        className={`group flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-[15px] font-medium transition-all ${
+                          link.highlight
+                            ? "bg-gradient-to-r from-primary/30 via-primary/15 to-transparent text-white shadow-[0_0_22px_-8px] shadow-primary ring-1 ring-primary/40"
+                            : active
+                            ? "bg-white/10 text-white ring-1 ring-white/15"
+                            : "text-white/70 hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                            link.highlight
+                              ? "bg-primary text-white shadow-lg shadow-primary/30"
+                              : active
+                              ? "bg-white/15 text-white"
+                              : "bg-white/5 text-white/60 group-hover:text-white"
+                          }`}
+                        >
+                          <Icon className="h-[18px] w-[18px]" />
+                        </span>
+                        <span className="flex-1">{link.label}</span>
+                        {link.highlight ? (
+                          <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                            AI
+                          </span>
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-white/25 transition-transform group-hover:translate-x-0.5 group-hover:text-white/50" />
+                        )}
+                      </Link>
+                    );
+                  })}
+                </nav>
+
+                {/* Genres */}
                 {discoverType && genres.length > 0 && (
-                  <div className="mt-2 space-y-2 rounded-md border border-white/10 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
+                  <div className="mt-7">
+                    <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
                       Genres
                     </p>
-                    <div className="grid grid-cols-2 gap-1">
+                    <div className="grid grid-cols-2 gap-1.5">
                       {genres.map((genre) => (
                         <Link
                           key={genre.id}
                           href={`/discover/${discoverType}/category/${genre.id}`}
                           onClick={() => setMobileOpen(false)}
-                          className="rounded px-2 py-1.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+                          className="rounded-lg bg-white/[0.03] px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                         >
                           {genre.name}
                         </Link>
@@ -223,6 +257,12 @@ export default function Header() {
           </Sheet>
         </div>
       </div>
+
+      <InfoModal
+        movie={selectedMovie}
+        open={!!selectedMovie}
+        onClose={() => setSelectedMovie(null)}
+      />
     </header>
   );
 }

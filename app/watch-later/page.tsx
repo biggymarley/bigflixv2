@@ -48,7 +48,7 @@ export default function WatchLaterPage() {
   const tvShows = savedTitles.filter((title) => title.savedType === "tv");
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-black">
       <Header />
       <div className="mx-auto max-w-7xl px-4 pt-24 pb-12">
         <h1 className="mb-6 text-2xl font-bold text-white">Watch Later</h1>
