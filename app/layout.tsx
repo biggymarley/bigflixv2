@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import PageTransitionVideo from "@/components/page-transition-video";
 import RouteTracker from "@/components/route-tracker";
+import AdNoticeModal from "@/components/ad-notice-modal";
 import { Analytics } from "@vercel/analytics/next"
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -25,6 +26,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}
+        <AdNoticeModal />
         <Suspense fallback={null}>
           <RouteTracker />
           <PageTransitionVideo />

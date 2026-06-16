@@ -3,17 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import {
-  ChevronRight,
-  Clapperboard,
-  Globe2,
-  BadgeDollarSign,
-  ShieldBan,
-  Sparkles,
-  ShieldCheck,
-  Download,
-  Zap,
-} from "lucide-react";
+import { ChevronRight, Sparkles, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Header from "@/components/header";
@@ -352,29 +342,30 @@ export default function Home() {
           <div className="grid gap-5 md:grid-cols-2">
             {/* Brave */}
             <SpotlightCard
-              className="border-white/10 bg-linear-to-br from-[#1a1210] to-[#1a0f0a]"
-              spotlightColor="rgba(251, 115, 22, 0.22)"
+              className="border border-white/[0.08] bg-gradient-to-br from-white/[0.05] to-white/[0.01]"
+              spotlightColor="rgba(255, 255, 255, 0.08)"
             >
               <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/20">
-                    <Download className="h-5 w-5 text-orange-400" />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 p-2 ring-1 ring-white/10">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/brave.svg" alt="Brave" className="h-full w-full" />
                   </div>
                   <div>
                     <h3 className="font-bold text-white">Option 1 — Brave Browser</h3>
-                    <p className="text-xs text-white/50">Built-in ad & tracker blocker, zero setup</p>
+                    <p className="text-xs text-white/50">Built-in ad &amp; tracker blocker, zero setup</p>
                   </div>
                 </div>
                 <ol className="space-y-2 text-sm text-white/70">
-                  <li className="flex gap-2"><span className="shrink-0 font-bold text-orange-400">1.</span>Go to <span className="font-semibold text-white">brave.com</span> and download Brave Browser.</li>
-                  <li className="flex gap-2"><span className="shrink-0 font-bold text-orange-400">2.</span>Install and open it — ads are already blocked by default.</li>
-                  <li className="flex gap-2"><span className="shrink-0 font-bold text-orange-400">3.</span>Head back to BigFlix and enjoy a clean, uninterrupted experience.</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-bold text-primary">1.</span>Go to <span className="font-semibold text-white">brave.com</span> and download Brave Browser.</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-bold text-primary">2.</span>Install and open it — ads are already blocked by default.</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-bold text-primary">3.</span>Head back to BigFlix and enjoy a clean, uninterrupted experience.</li>
                 </ol>
                 <a
                   href="https://brave.com/download"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-1 inline-flex w-fit items-center gap-2 rounded-md bg-orange-500/20 px-4 py-2 text-sm font-semibold text-orange-300 transition-colors hover:bg-orange-500/30"
+                  className="mt-1 inline-flex w-fit items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10"
                 >
                   Download Brave
                   <ChevronRight className="h-4 w-4" />
@@ -384,13 +375,14 @@ export default function Home() {
 
             {/* uBlock Origin */}
             <SpotlightCard
-              className="border-white/10 bg-linear-to-br from-[#0d1a12] to-[#0a1a10]"
-              spotlightColor="rgba(34, 197, 94, 0.2)"
+              className="border border-white/[0.08] bg-gradient-to-br from-white/[0.05] to-white/[0.01]"
+              spotlightColor="rgba(255, 255, 255, 0.08)"
             >
               <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-500/20">
-                    <Zap className="h-5 w-5 text-green-400" />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 p-2 ring-1 ring-white/10">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/ublock-origin.svg" alt="uBlock Origin" className="h-full w-full" />
                   </div>
                   <div>
                     <h3 className="font-bold text-white">Option 2 — uBlock Origin</h3>
@@ -398,15 +390,15 @@ export default function Home() {
                   </div>
                 </div>
                 <ol className="space-y-2 text-sm text-white/70">
-                  <li className="flex gap-2"><span className="shrink-0 font-bold text-green-400">1.</span>Open Chrome, Firefox, or Edge and go to your browser&apos;s extension store.</li>
-                  <li className="flex gap-2"><span className="shrink-0 font-bold text-green-400">2.</span>Search for <span className="font-semibold text-white">uBlock Origin</span> and click <span className="font-semibold text-white">Add to browser</span>.</li>
-                  <li className="flex gap-2"><span className="shrink-0 font-bold text-green-400">3.</span>Done. Every ad across BigFlix and the rest of the web is now blocked.</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-bold text-primary">1.</span>Open Chrome, Firefox, or Edge and go to your browser&apos;s extension store.</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-bold text-primary">2.</span>Search for <span className="font-semibold text-white">uBlock Origin</span> and click <span className="font-semibold text-white">Add to browser</span>.</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-bold text-primary">3.</span>Done. Every ad across BigFlix and the rest of the web is now blocked.</li>
                 </ol>
                 <a
                   href="https://ublockorigin.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-1 inline-flex w-fit items-center gap-2 rounded-md bg-green-500/20 px-4 py-2 text-sm font-semibold text-green-300 transition-colors hover:bg-green-500/30"
+                  className="mt-1 inline-flex w-fit items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10"
                 >
                   Get uBlock Origin
                   <ChevronRight className="h-4 w-4" />
@@ -416,37 +408,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-      {/* ── More Reasons to Join ── */}
-      {/* <section className="bg-black px-6 py-16 md:px-12">
-        <h2 className="mb-10 text-center text-xl font-bold text-white md:text-2xl">
-          More Reasons to Join
-        </h2>
-        <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <ReasonCard
-            icon={<Clapperboard className="h-8 w-8 text-primary" />}
-            title="Bigger library than Netflix"
-            description="More movies and TV shows than Netflix."
-          />
-          <ReasonCard
-            icon={<Globe2 className="h-8 w-8 text-primary" />}
-            title="Region locks? Nobody cares"
-            description="Nobody cares about your region here. You can watch Borat in Kazakhstan too."
-          />
-          <ReasonCard
-            icon={<BadgeDollarSign className="h-8 w-8 text-primary" />}
-            title="Free forever"
-            description="This site will always stay free. Zero subscriptions, zero drama, maximum vibes."
-          />
-          <ReasonCard
-            icon={<ShieldBan className="h-8 w-8 text-primary" />}
-            title="Use an ad blocker SERIOUSLY"
-            description="I do not earn anything from this website, so you might as well enjoy it with ad blocker on."
-          />
-        </div>
-      </section> */}
-
-
-
       {/* ── Divider ── */}
       <div className="h-1 bg-[#232323]" />
 
@@ -508,27 +469,6 @@ export default function Home() {
         open={infoModalOpen}
         onClose={() => setInfoModalOpen(false)}
       />
-    </div>
-  );
-}
-
-
-function ReasonCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="flex flex-col gap-4 rounded-xl bg-linear-to-br from-[#1a1a2e] to-[#16213e] p-6">
-      <h3 className="text-lg font-bold text-white">{title}</h3>
-      <p className="flex-1 text-sm leading-relaxed text-white/60">
-        {description}
-      </p>
-      <div className="self-end">{icon}</div>
     </div>
   );
 }

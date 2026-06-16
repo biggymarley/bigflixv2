@@ -20,6 +20,7 @@ export default function MovieCard({
   const title = movie.title || movie.name || movie.original_title || "Untitled";
   const year =
     (movie.release_date || movie.first_air_date)?.split("-")[0] || "";
+  const rating = movie.vote_average ? movie.vote_average.toFixed(1) : "";
   const missingPoster = isImageMissing(movie.poster_path);
 
   if (type === "person") {
@@ -28,10 +29,11 @@ export default function MovieCard({
 
   return (
     <button
+      type="button"
       onClick={() => onInfoClick?.({ ...movie, media_type: type })}
-      className="group relative w-full cursor-pointer overflow-hidden rounded-md text-left transition-transform duration-300 hover:z-10 hover:scale-105"
+      className="group/card relative w-full text-left"
     >
-      <div className="relative aspect-2/3 w-full">
+      <div className="relative aspect-2/3 w-full overflow-hidden rounded-xl ring-1 ring-white/10 transition-all duration-300 group-hover/card:-translate-y-1 group-hover/card:ring-2 group-hover/card:ring-primary/60 group-hover/card:shadow-2xl group-hover/card:shadow-primary/25">
         {missingPoster ? (
           <div className="absolute inset-0 bg-[url('/bigflix.png')] bg-repeat bg-size-[120px_auto]" />
         ) : (
@@ -39,7 +41,7 @@ export default function MovieCard({
             src={imageUrl(movie.poster_path)}
             alt={title}
             fill
-            className="object-cover"
+            className="object-cover transition-transform duration-500 group-hover/card:scale-110"
             sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 200px"
           />
         )}
@@ -48,21 +50,30 @@ export default function MovieCard({
             Image not available
           </div>
         )}
-      </div>
 
-      <div className="absolute inset-0 flex flex-col justify-end bg-linear-to-t from-black/90 via-transparent to-transparent p-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-        <h3 className="line-clamp-2 text-sm font-bold text-white">
-          {title}
-        </h3>
-        <div className="mt-1 flex items-center gap-2 text-xs text-white/70">
-          {year && <span>{year}</span>}
-          <span className="flex items-center gap-0.5">
-            <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
-            {movie.vote_average?.toFixed(1)}
+        {/* hover veil */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/25 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
+
+        {/* date (hover) */}
+        {year && (
+          <span className="absolute left-2 top-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-white opacity-0 backdrop-blur transition-opacity duration-300 group-hover/card:opacity-100">
+            {year}
           </span>
-          <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] uppercase">
-            {type}
+        )}
+
+        {/* rating (hover) */}
+        {rating && (
+          <span className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-amber-300 opacity-0 backdrop-blur transition-opacity duration-300 group-hover/card:opacity-100">
+            <Star className="h-3 w-3 fill-amber-300" />
+            {rating}
           </span>
+        )}
+
+        {/* title (hover) */}
+        <div className="absolute inset-x-0 bottom-0 translate-y-1 p-2.5 opacity-0 transition-all duration-300 group-hover/card:translate-y-0 group-hover/card:opacity-100">
+          <p className="line-clamp-2 text-xs font-semibold leading-tight text-white">
+            {title}
+          </p>
         </div>
       </div>
     </button>
