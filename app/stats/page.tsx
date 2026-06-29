@@ -19,6 +19,7 @@ interface TorrentRow {
   progressPct: number;
   downloadedMB: number;
   downloadMbps: number;
+  watching: boolean;
   activeStreams: number;
 }
 
@@ -26,6 +27,7 @@ interface Stats {
   uptimeSec: number;
   memoryMB: number;
   viewers: number;
+  connections: number;
   byMode: { direct: number; remux: number; transcode: number };
   totals: { torrents: number; downloadMbps: number; uploadMbps: number };
   torrents: TorrentRow[];
@@ -188,7 +190,7 @@ export default function StatsPage() {
                       <th className="px-3 py-2.5 text-right font-medium">Progress</th>
                       <th className="px-3 py-2.5 text-right font-medium">Down</th>
                       <th className="px-3 py-2.5 text-right font-medium">↓ Mbps</th>
-                      <th className="px-3 py-2.5 text-right font-medium">Viewers</th>
+                      <th className="px-3 py-2.5 text-right font-medium">Watching</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -203,7 +205,15 @@ export default function StatsPage() {
                         <td className="px-3 py-2.5 text-right tabular-nums text-white/60">{t.progressPct}%</td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-white/60">{t.downloadedMB} MB</td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-white/60">{t.downloadMbps}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-white/80">{t.activeStreams}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">
+                          {t.watching ? (
+                            <span className="font-medium text-green-400">
+                              ● live{t.activeStreams > 1 ? ` ×${t.activeStreams}` : ""}
+                            </span>
+                          ) : (
+                            <span className="text-white/30">—</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

@@ -310,6 +310,24 @@ export default function WatchPage() {
     return () => window.removeEventListener("pagehide", onPageHide);
   }, [stopBox]);
 
+  // Heartbeat: the box pushes the file faster than real-time, so playback runs
+  // off the browser buffer with no live connection — without this the box would
+  // count us as 0 viewers while we're watching. Ping /touch every 15s while a
+  // torrent is loaded so the box keeps the title counted (and its torrent warm).
+  useEffect(() => {
+    if (source !== "torrent" || !torrentBase) return;
+    const ping = () => {
+      const hash = playingHashRef.current;
+      if (hash) {
+        try {
+          navigator.sendBeacon(`${torrentBase}/touch?hash=${hash}&token=${torrentToken}`);
+        } catch {}
+      }
+    };
+    const iv = setInterval(ping, 15000);
+    return () => clearInterval(iv);
+  }, [source, torrentBase, torrentToken]);
+
   // One persistent <video> element: changing its src natively aborts the
   // previous stream (the browser's media load algorithm), so the box sees each
   // old connection close. Ensure the new src actually starts playing.
