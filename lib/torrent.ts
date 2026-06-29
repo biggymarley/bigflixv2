@@ -61,11 +61,13 @@ function parse(s: TorrentioStream): TorrentPick | null {
  */
 export async function listTorrents(
   imdb: string,
-  quality: string
+  quality: string,
+  signal?: AbortSignal
 ): Promise<TorrentPick[]> {
   try {
     const res = await fetch(
-      `${TORRENTIO_BASE}/${TORRENTIO_OPTS}/stream/movie/${imdb}.json`
+      `${TORRENTIO_BASE}/${TORRENTIO_OPTS}/stream/movie/${imdb}.json`,
+      { signal }
     );
     if (!res.ok) return [];
     const data = (await res.json()) as { streams?: TorrentioStream[] };

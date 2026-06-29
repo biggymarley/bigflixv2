@@ -158,6 +158,7 @@ export default function WatchPage() {
   useEffect(() => {
     if (source !== "torrent" || !torrentAvailable || !imdbId) return;
     let cancelled = false;
+    const ctrl = new AbortController();
     setTorrentError(false);
     setTorrentLoading(true);
     setVideoSrc(null);
@@ -165,7 +166,7 @@ export default function WatchPage() {
     setTorrentOptions([]);
 
     (async () => {
-      const list = await listTorrents(imdbId, quality);
+      const list = await listTorrents(imdbId, quality, ctrl.signal);
       if (cancelled) return;
       setTorrentOptions(list);
       if (list.length) {
@@ -179,6 +180,7 @@ export default function WatchPage() {
 
     return () => {
       cancelled = true;
+      ctrl.abort();
     };
   }, [source, torrentAvailable, imdbId, quality, torrentBase, torrentToken, buildTorrentUrl]);
 
