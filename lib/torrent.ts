@@ -81,10 +81,15 @@ export async function listTorrents(
       seen.has(p.hash) ? false : (seen.add(p.hash), true)
     );
 
-    // Requested quality first, then non-HEVC (cheaper to stream), then seeders.
+    // Ranking: requested quality → single-movie torrents (avoid huge multi-movie
+    // packs that have enormous metadata and barely stream) → non-HEVC (cheaper)
+    // → seeders. A high fileIdx means the video sits deep inside a many-file
+    // torrent, i.e. a pack.
+    const isPack = (p: TorrentPick) => (p.fileIdx != null && p.fileIdx > 5 ? 1 : 0);
     unique.sort((a, b) => {
       const q = (p: TorrentPick) => (p.quality === quality ? 0 : 1);
       if (q(a) !== q(b)) return q(a) - q(b);
+      if (isPack(a) !== isPack(b)) return isPack(a) - isPack(b);
       const c = (p: TorrentPick) => (p.codec === "x264" ? 0 : 1);
       if (c(a) !== c(b)) return c(a) - c(b);
       return b.seeds - a.seeds;
