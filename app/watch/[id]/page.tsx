@@ -224,22 +224,30 @@ export default function WatchPage() {
     if (source !== "torrent") setVideoSrc(null);
   }, [source]);
 
-  // Force the browser to abort the in-flight stream when the <video> goes away
-  // (navigation / back button / src change). Removing the element from the DOM
-  // alone doesn't reliably cancel the request, so the box would keep streaming
-  // and transcoding — counting a phantom viewer. pause + clear src + load()
-  // makes the browser drop the connection, which the box sees as a disconnect.
+  // One persistent <video> element: changing its src natively aborts the
+  // previous stream (the browser's media load algorithm), so the box sees each
+  // old connection close. Ensure the new src actually starts playing.
   useEffect(() => {
     const v = videoRef.current;
-    return () => {
-      if (!v) return;
-      try {
-        v.pause();
-        v.removeAttribute("src");
-        v.load();
-      } catch {}
-    };
+    if (v && videoSrc) v.play().catch(() => {});
   }, [videoSrc]);
+
+  // Callback ref: fires with null exactly when the <video> is removed
+  // (navigation, back button, switching to Server). Tear the element down then
+  // so its request is aborted and the box stops streaming/transcoding.
+  const attachVideo = useCallback((el: HTMLVideoElement | null) => {
+    if (el === null) {
+      const prev = videoRef.current;
+      if (prev) {
+        try {
+          prev.pause();
+          prev.removeAttribute("src");
+          prev.load();
+        } catch {}
+      }
+    }
+    videoRef.current = el;
+  }, []);
 
   // True total length from TMDB (the fMP4 stream can't report it). Movies use
   // runtime; TV uses the episode runtime (falling back to the show average).
@@ -488,8 +496,7 @@ export default function WatchPage() {
         <>
           {videoSrc && (
             <video
-              ref={videoRef}
-              key={videoSrc}
+              ref={attachVideo}
               src={videoSrc}
               className="h-full w-full flex-1 bg-black"
               autoPlay
