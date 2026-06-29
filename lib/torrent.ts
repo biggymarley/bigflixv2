@@ -68,7 +68,6 @@ export interface ResolveOpts {
  */
 export async function listTorrents(
   imdb: string,
-  quality: string,
   opts: ResolveOpts = {}
 ): Promise<TorrentPick[]> {
   const { type = "movie", season, episode, signal } = opts;
@@ -92,19 +91,10 @@ export async function listTorrents(
       seen.has(p.hash) ? false : (seen.add(p.hash), true)
     );
 
-    // Ranking: requested quality → single-movie torrents (avoid huge multi-movie
-    // packs that barely stream) → non-HEVC (cheaper) → seeders. A high fileIdx
-    // means the video sits deep inside a many-file torrent. For TV that's normal
-    // (season packs), so only penalize packs for movies.
-    const isPack = (p: TorrentPick) =>
-      type === "movie" && p.fileIdx != null && p.fileIdx > 5 ? 1 : 0;
+    // Sorted by most seeders (x264 wins ties — cheaper to stream).
     unique.sort((a, b) => {
-      const q = (p: TorrentPick) => (p.quality === quality ? 0 : 1);
-      if (q(a) !== q(b)) return q(a) - q(b);
-      if (isPack(a) !== isPack(b)) return isPack(a) - isPack(b);
-      const c = (p: TorrentPick) => (p.codec === "x264" ? 0 : 1);
-      if (c(a) !== c(b)) return c(a) - c(b);
-      return b.seeds - a.seeds;
+      if (b.seeds !== a.seeds) return b.seeds - a.seeds;
+      return (a.codec === "x264" ? 0 : 1) - (b.codec === "x264" ? 0 : 1);
     });
     return unique;
   } catch {
@@ -112,11 +102,11 @@ export async function listTorrents(
   }
 }
 
-/** Best single pick (or null). Convenience wrapper around listTorrents. */
+/** Most-seeded single pick (or null). Convenience wrapper around listTorrents. */
 export async function resolveTorrent(
   imdb: string,
-  quality: string
+  opts: ResolveOpts = {}
 ): Promise<TorrentPick | null> {
-  const list = await listTorrents(imdb, quality);
+  const list = await listTorrents(imdb, opts);
   return list[0] || null;
 }

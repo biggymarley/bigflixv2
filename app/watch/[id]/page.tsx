@@ -54,13 +54,13 @@ export default function WatchPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [source, setSource] = useState<"embed" | "torrent">("embed");
   const [imdbId, setImdbId] = useState<string | null>(null);
-  const [quality, setQuality] = useState<"1080p" | "720p">("1080p");
   const [torrentLoading, setTorrentLoading] = useState(false);
   const [torrentError, setTorrentError] = useState(false);
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [torrentInfo, setTorrentInfo] = useState<TorrentPick | null>(null);
   const [torrentOptions, setTorrentOptions] = useState<TorrentPick[]>([]);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<string>("all"); // quality filter in Sources panel
   // Custom player state (torrent <video> uses a custom bar so we can show the
   // real TMDB runtime as total length and seek even on the fMP4 path).
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -165,6 +165,26 @@ export default function WatchPage() {
     [torrentBase, torrentToken]
   );
 
+  // Default auto-pick: prefer 1080p, then x264 (cheap to stream), then avoid
+  // multi-movie packs (movies only), with the most seeders as the tiebreaker.
+  const pickDefault = useCallback(
+    (list: TorrentPick[]): TorrentPick | null => {
+      if (!list.length) return null;
+      const rank = (p: TorrentPick) => [
+        p.quality === "1080p" ? 0 : 1,
+        p.codec === "x264" ? 0 : 1,
+        type === "movie" && p.fileIdx != null && p.fileIdx > 5 ? 1 : 0,
+      ];
+      return [...list].sort((a, b) => {
+        const ra = rank(a);
+        const rb = rank(b);
+        for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return ra[i] - rb[i];
+        return b.seeds - a.seeds;
+      })[0];
+    },
+    [type]
+  );
+
   // Switch to a specific torrent (e.g. user picked another source). Debounced:
   // a flurry of clicks gives instant UI feedback but only actually opens a
   // stream for the final pick — otherwise every click spawns a box stream.
@@ -210,11 +230,12 @@ export default function WatchPage() {
     setVideoSrc(null);
     setTorrentInfo(null);
     setTorrentOptions([]);
+    setSourceFilter("all");
     setSeekOffset(0);
     setCurrentTime(0);
 
     (async () => {
-      const list = await listTorrents(imdbId, quality, {
+      const list = await listTorrents(imdbId, {
         type: type as "movie" | "tv",
         season,
         episode,
@@ -222,12 +243,13 @@ export default function WatchPage() {
       });
       if (cancelled) return;
       setTorrentOptions(list);
-      if (list.length) {
-        setTorrentInfo(list[0]);
-        setVideoSrc(buildTorrentUrl(list[0]));
+      const best = pickDefault(list);
+      if (best) {
+        setTorrentInfo(best);
+        setVideoSrc(buildTorrentUrl(best));
       } else if (type === "movie") {
         // Torrentio unreachable → let the box try via YTS (movies only).
-        setVideoSrc(`${torrentBase}/stream?imdb=${imdbId}&q=${quality}&token=${torrentToken}`);
+        setVideoSrc(`${torrentBase}/stream?imdb=${imdbId}&q=1080p&token=${torrentToken}`);
       } else {
         // No torrent found for this episode and there's no TV fallback source.
         setTorrentLoading(false);
@@ -239,7 +261,7 @@ export default function WatchPage() {
       cancelled = true;
       ctrl.abort();
     };
-  }, [source, torrentAvailable, imdbId, quality, type, season, episode, torrentBase, torrentToken, buildTorrentUrl]);
+  }, [source, torrentAvailable, imdbId, type, season, episode, torrentBase, torrentToken, buildTorrentUrl, pickDefault]);
 
   // Leaving torrent mode (e.g. switch to Server) clears the stream so the
   // teardown below fires and the box stops streaming.
@@ -322,6 +344,14 @@ export default function WatchPage() {
       }
     },
     [seekOffset, torrentInfo, buildTorrentUrl]
+  );
+
+  // Quality filter options for the Sources panel (qualities present, high→low).
+  const qualitiesInList = Array.from(new Set(torrentOptions.map((o) => o.quality)))
+    .filter((q) => q && q !== "unknown")
+    .sort((a, b) => parseInt(b) - parseInt(a));
+  const filteredOptions = torrentOptions.filter(
+    (o) => sourceFilter === "all" || o.quality === sourceFilter
   );
 
   const title = details?.title || details?.name || "Loading...";
@@ -429,21 +459,11 @@ export default function WatchPage() {
                   Torrent
                 </button>
               </div>
-              {/* Quality chips (torrent only) */}
-              {source === "torrent" && (
-                <div className="flex items-center rounded-full border border-white/15 bg-white/5 p-0.5 text-xs">
-                  {(["1080p", "720p"] as const).map((q) => (
-                    <button
-                      key={q}
-                      onClick={() => setQuality(q)}
-                      className={`rounded-full px-2 py-1 font-medium transition-colors ${
-                        quality === q ? "bg-white/90 text-black" : "text-white/70 hover:text-white"
-                      }`}
-                    >
-                      {q}
-                    </button>
-                  ))}
-                </div>
+              {/* Quality label (read-only — current source's quality) */}
+              {source === "torrent" && torrentInfo && (
+                <span className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs font-medium uppercase text-white/80">
+                  {torrentInfo.quality}
+                </span>
               )}
               {/* Seeder health badge */}
               {source === "torrent" && torrentInfo && (
@@ -566,22 +586,12 @@ export default function WatchPage() {
           {torrentError && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-black/80 px-6 text-center">
               <p className="text-sm text-white/80">
-                This torrent wouldn&apos;t play. Try another source
-                {quality === "1080p" ? ", drop to 720p," : ""} or use the server.
+                This torrent wouldn&apos;t play. Try another source or use the server.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {torrentOptions.length > 1 && (
                   <Button variant="secondary" size="sm" onClick={() => setSourcesOpen(true)}>
                     <Layers className="mr-1 h-4 w-4" /> Other sources
-                  </Button>
-                )}
-                {quality === "1080p" && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setQuality("720p")}
-                  >
-                    Try 720p
                   </Button>
                 )}
                 <Button variant="default" size="sm" onClick={() => setSource("embed")}>
@@ -649,7 +659,7 @@ export default function WatchPage() {
             >
               <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 pt-14">
                 <span className="text-sm font-semibold text-white">
-                  Sources <span className="text-white/40">({torrentOptions.length})</span>
+                  Sources <span className="text-white/40">({filteredOptions.length})</span>
                 </span>
                 <Button
                   variant="ghost"
@@ -660,8 +670,24 @@ export default function WatchPage() {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
+              {/* Quality filter */}
+              <div className="flex flex-wrap gap-1.5 border-b border-white/10 px-3 py-2">
+                {["all", ...qualitiesInList].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => setSourceFilter(q)}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium uppercase transition-colors ${
+                      sourceFilter === q
+                        ? "bg-white/90 text-black"
+                        : "bg-white/5 text-white/60 hover:text-white"
+                    }`}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
               <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-                {torrentOptions.map((opt) => {
+                {filteredOptions.map((opt) => {
                   const active = torrentInfo?.hash === opt.hash;
                   return (
                     <button
