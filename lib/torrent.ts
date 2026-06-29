@@ -55,20 +55,31 @@ function parse(s: TorrentioStream): TorrentPick | null {
   };
 }
 
+export interface ResolveOpts {
+  type?: "movie" | "tv";
+  season?: number;
+  episode?: number;
+  signal?: AbortSignal;
+}
+
 /**
- * Return the ranked list of torrent candidates for a movie (browser-side).
- * Empty array if Torrentio is unreachable or has no results.
+ * Return the ranked list of torrent candidates for a movie or TV episode
+ * (browser-side). Empty array if Torrentio is unreachable or has no results.
  */
 export async function listTorrents(
   imdb: string,
   quality: string,
-  signal?: AbortSignal
+  opts: ResolveOpts = {}
 ): Promise<TorrentPick[]> {
+  const { type = "movie", season, episode, signal } = opts;
+  const path =
+    type === "tv"
+      ? `stream/series/${imdb}:${season}:${episode}.json`
+      : `stream/movie/${imdb}.json`;
   try {
-    const res = await fetch(
-      `${TORRENTIO_BASE}/${TORRENTIO_OPTS}/stream/movie/${imdb}.json`,
-      { signal }
-    );
+    const res = await fetch(`${TORRENTIO_BASE}/${TORRENTIO_OPTS}/${path}`, {
+      signal,
+    });
     if (!res.ok) return [];
     const data = (await res.json()) as { streams?: TorrentioStream[] };
     const picks = (data.streams || [])
@@ -82,10 +93,11 @@ export async function listTorrents(
     );
 
     // Ranking: requested quality → single-movie torrents (avoid huge multi-movie
-    // packs that have enormous metadata and barely stream) → non-HEVC (cheaper)
-    // → seeders. A high fileIdx means the video sits deep inside a many-file
-    // torrent, i.e. a pack.
-    const isPack = (p: TorrentPick) => (p.fileIdx != null && p.fileIdx > 5 ? 1 : 0);
+    // packs that barely stream) → non-HEVC (cheaper) → seeders. A high fileIdx
+    // means the video sits deep inside a many-file torrent. For TV that's normal
+    // (season packs), so only penalize packs for movies.
+    const isPack = (p: TorrentPick) =>
+      type === "movie" && p.fileIdx != null && p.fileIdx > 5 ? 1 : 0;
     unique.sort((a, b) => {
       const q = (p: TorrentPick) => (p.quality === quality ? 0 : 1);
       if (q(a) !== q(b)) return q(a) - q(b);

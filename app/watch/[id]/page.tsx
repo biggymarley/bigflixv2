@@ -68,13 +68,13 @@ export default function WatchPage() {
       .catch(() => {});
   }, [id, type]);
 
-  // Torrent source needs an IMDB id; YTS is movies-only.
+  // Torrent source needs an IMDB id (works for movies and TV via Torrentio).
   useEffect(() => {
-    if (type !== "movie") {
+    if (type !== "movie" && type !== "tv") {
       setImdbId(null);
       return;
     }
-    fetch(`/api/tmdb/movie/${id}/external_ids`)
+    fetch(`/api/tmdb/${type}/${id}/external_ids`)
       .then((res) => res.json())
       .then((data) => setImdbId(data.imdb_id || null))
       .catch(() => setImdbId(null));
@@ -128,8 +128,8 @@ export default function WatchPage() {
 
   const torrentBase = process.env.NEXT_PUBLIC_TORRENT_BASE_URL;
   const torrentToken = process.env.NEXT_PUBLIC_TORRENT_TOKEN;
-  // Torrent option is only offered for movies with a known IMDB id and a configured backend.
-  const torrentAvailable = Boolean(torrentBase && type === "movie" && imdbId);
+  // Torrent option is offered for any title with a known IMDB id and a configured backend.
+  const torrentAvailable = Boolean(torrentBase && imdbId);
   // Seeder health colour: green = plenty, amber = thin, red = risky.
   const seedColor = (n: number) =>
     n >= 50 ? "text-green-400" : n >= 10 ? "text-amber-400" : "text-red-400";
@@ -166,15 +166,24 @@ export default function WatchPage() {
     setTorrentOptions([]);
 
     (async () => {
-      const list = await listTorrents(imdbId, quality, ctrl.signal);
+      const list = await listTorrents(imdbId, quality, {
+        type: type as "movie" | "tv",
+        season,
+        episode,
+        signal: ctrl.signal,
+      });
       if (cancelled) return;
       setTorrentOptions(list);
       if (list.length) {
         setTorrentInfo(list[0]);
         setVideoSrc(buildTorrentUrl(list[0]));
-      } else {
-        // Torrentio unreachable → let the box try via YTS.
+      } else if (type === "movie") {
+        // Torrentio unreachable → let the box try via YTS (movies only).
         setVideoSrc(`${torrentBase}/stream?imdb=${imdbId}&q=${quality}&token=${torrentToken}`);
+      } else {
+        // No torrent found for this episode and there's no TV fallback source.
+        setTorrentLoading(false);
+        setTorrentError(true);
       }
     })();
 
@@ -182,7 +191,7 @@ export default function WatchPage() {
       cancelled = true;
       ctrl.abort();
     };
-  }, [source, torrentAvailable, imdbId, quality, torrentBase, torrentToken, buildTorrentUrl]);
+  }, [source, torrentAvailable, imdbId, quality, type, season, episode, torrentBase, torrentToken, buildTorrentUrl]);
 
   const title = details?.title || details?.name || "Loading...";
 
@@ -320,7 +329,10 @@ export default function WatchPage() {
               {/* Source picker toggle */}
               {source === "torrent" && torrentOptions.length > 1 && (
                 <button
-                  onClick={() => setSourcesOpen((o) => !o)}
+                  onClick={() => {
+                    setSourcesOpen((o) => !o);
+                    setSidebarOpen(false);
+                  }}
                   title="Choose a different torrent"
                   className={`flex items-center gap-1 rounded-full border border-white/15 px-2 py-1 text-xs font-medium transition-colors ${
                     sourcesOpen ? "bg-white/90 text-black" : "bg-white/5 text-white/70 hover:text-white"
@@ -337,7 +349,10 @@ export default function WatchPage() {
               variant="ghost"
               size="icon"
               className={`text-white hover:bg-white/10 ${sidebarOpen ? "bg-white/20" : ""}`}
-              onClick={() => setSidebarOpen((o) => !o)}
+              onClick={() => {
+                setSidebarOpen((o) => !o);
+                setSourcesOpen(false);
+              }}
               title="Episodes"
             >
               <LayoutList className="h-5 w-5" />
