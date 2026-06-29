@@ -64,6 +64,8 @@ export default function WatchPage() {
   // Custom player state (torrent <video> uses a custom bar so we can show the
   // real TMDB runtime as total length and seek even on the fMP4 path).
   const videoRef = useRef<HTMLVideoElement>(null);
+  const selectDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tearingDownRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [mediaDuration, setMediaDuration] = useState(0);
@@ -163,17 +165,38 @@ export default function WatchPage() {
     [torrentBase, torrentToken]
   );
 
-  // Switch to a specific torrent (e.g. user picked another source).
+  // Switch to a specific torrent (e.g. user picked another source). Debounced:
+  // a flurry of clicks gives instant UI feedback but only actually opens a
+  // stream for the final pick — otherwise every click spawns a box stream.
   const selectTorrent = useCallback(
     (pick: TorrentPick) => {
       setTorrentError(false);
       setTorrentLoading(true);
       setTorrentInfo(pick);
-      setVideoSrc(buildTorrentUrl(pick));
       setSourcesOpen(false);
+      if (selectDebounce.current) clearTimeout(selectDebounce.current);
+      selectDebounce.current = setTimeout(() => {
+        const v = videoRef.current;
+        if (v) {
+          tearingDownRef.current = true;
+          try {
+            v.pause();
+            v.removeAttribute("src");
+            v.load();
+          } catch {}
+          setTimeout(() => (tearingDownRef.current = false), 150);
+        }
+        setSeekOffset(0);
+        setCurrentTime(0);
+        setVideoSrc(buildTorrentUrl(pick));
+      }, 350);
     },
     [buildTorrentUrl]
   );
+
+  useEffect(() => () => {
+    if (selectDebounce.current) clearTimeout(selectDebounce.current);
+  }, []);
 
   // Resolve candidates in the browser (residential IP → Torrentio works), then
   // hand only the infohash to the box. Falls back to the box's own ?imdb=
@@ -511,6 +534,8 @@ export default function WatchPage() {
               onCanPlay={() => setTorrentLoading(false)}
               onPlaying={() => setTorrentLoading(false)}
               onError={() => {
+                // Ignore the transient error from clearing src during teardown.
+                if (tearingDownRef.current || !videoRef.current?.getAttribute("src")) return;
                 setTorrentLoading(false);
                 setTorrentError(true);
                 // Surface the picker so the user can try a different torrent.
