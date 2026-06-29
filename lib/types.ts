@@ -22,6 +22,7 @@ export interface Movie {
 
 export interface MovieDetails extends Movie {
   runtime?: number;
+  episode_run_time?: number[];
   number_of_seasons?: number;
   number_of_episodes?: number;
   genres: Genre[];

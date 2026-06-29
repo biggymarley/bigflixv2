@@ -12,6 +12,10 @@ import {
   LayoutList,
   Layers,
   Users,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +24,15 @@ import { useWatchLater } from "@/hooks/use-watch-later";
 import { useWatchHistory } from "@/hooks/use-watch-history";
 import type { Episode, MovieDetails } from "@/lib/types";
 import { listTorrents, type TorrentPick } from "@/lib/torrent";
+
+function formatTime(sec: number) {
+  if (!Number.isFinite(sec) || sec < 0) sec = 0;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
+  return `${h > 0 ? h + ":" : ""}${mm}:${String(s).padStart(2, "0")}`;
+}
 
 export default function WatchPage() {
   const params = useParams();
@@ -48,6 +61,15 @@ export default function WatchPage() {
   const [torrentInfo, setTorrentInfo] = useState<TorrentPick | null>(null);
   const [torrentOptions, setTorrentOptions] = useState<TorrentPick[]>([]);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  // Custom player state (torrent <video> uses a custom bar so we can show the
+  // real TMDB runtime as total length and seek even on the fMP4 path).
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [mediaDuration, setMediaDuration] = useState(0);
+  const [seekOffset, setSeekOffset] = useState(0);
+  const [muted, setMuted] = useState(false);
+  const [scrubbing, setScrubbing] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -135,8 +157,9 @@ export default function WatchPage() {
     n >= 50 ? "text-green-400" : n >= 10 ? "text-amber-400" : "text-red-400";
 
   const buildTorrentUrl = useCallback(
-    (pick: TorrentPick) =>
-      `${torrentBase}/stream?hash=${pick.hash}&fileIdx=${pick.fileIdx ?? ""}&codec=${pick.codec}&token=${torrentToken}`,
+    (pick: TorrentPick, t?: number) =>
+      `${torrentBase}/stream?hash=${pick.hash}&fileIdx=${pick.fileIdx ?? ""}&codec=${pick.codec}&token=${torrentToken}` +
+      (t && t > 0 ? `&t=${Math.floor(t)}` : ""),
     [torrentBase, torrentToken]
   );
 
@@ -164,6 +187,8 @@ export default function WatchPage() {
     setVideoSrc(null);
     setTorrentInfo(null);
     setTorrentOptions([]);
+    setSeekOffset(0);
+    setCurrentTime(0);
 
     (async () => {
       const list = await listTorrents(imdbId, quality, {
@@ -192,6 +217,58 @@ export default function WatchPage() {
       ctrl.abort();
     };
   }, [source, torrentAvailable, imdbId, quality, type, season, episode, torrentBase, torrentToken, buildTorrentUrl]);
+
+  // True total length from TMDB (the fMP4 stream can't report it). Movies use
+  // runtime; TV uses the episode runtime (falling back to the show average).
+  const currentEpisodeRuntime =
+    episodes.find((e) => e.episode_number === episode)?.runtime ||
+    details?.episode_run_time?.[0] ||
+    0;
+  const knownDurationSec =
+    (type === "tv" ? currentEpisodeRuntime : details?.runtime || 0) * 60;
+  // Prefer the longer of TMDB runtime and the media's own (real for direct-play
+  // MP4, bogus/growing for fMP4 — TMDB wins there).
+  const totalDuration = Math.max(
+    knownDurationSec,
+    Number.isFinite(mediaDuration) && mediaDuration < 100000 ? mediaDuration : 0
+  );
+  const displayTime = seekOffset + currentTime;
+
+  const togglePlay = useCallback(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) v.play().catch(() => {});
+    else v.pause();
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = !v.muted;
+    setMuted(v.muted);
+  }, []);
+
+  // Seek within the buffered/seekable range natively; otherwise reload the
+  // stream at the target time (the box -ss into the file).
+  const handleSeek = useCallback(
+    (target: number) => {
+      const v = videoRef.current;
+      if (!v) return;
+      const local = target - seekOffset;
+      const s = v.seekable;
+      const withinBuffer =
+        s.length > 0 && local >= s.start(0) - 1 && local <= s.end(s.length - 1) + 1;
+      if (withinBuffer) {
+        v.currentTime = Math.max(0, local);
+      } else if (torrentInfo) {
+        setSeekOffset(target);
+        setCurrentTime(0);
+        setTorrentLoading(true);
+        setVideoSrc(buildTorrentUrl(torrentInfo, target));
+      }
+    },
+    [seekOffset, torrentInfo, buildTorrentUrl]
+  );
 
   const title = details?.title || details?.name || "Loading...";
 
@@ -388,12 +465,18 @@ export default function WatchPage() {
         <>
           {videoSrc && (
             <video
+              ref={videoRef}
               key={videoSrc}
               src={videoSrc}
               className="h-full w-full flex-1 bg-black"
-              controls
               autoPlay
               playsInline
+              onClick={togglePlay}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+              onDurationChange={(e) => setMediaDuration(e.currentTarget.duration)}
+              onLoadedMetadata={(e) => setMediaDuration(e.currentTarget.duration)}
               onWaiting={() => setTorrentLoading(true)}
               onCanPlay={() => setTorrentLoading(false)}
               onPlaying={() => setTorrentLoading(false)}
@@ -449,6 +532,55 @@ export default function WatchPage() {
                 <Button variant="default" size="sm" onClick={() => setSource("embed")}>
                   Use server
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Custom control bar — shows the real TMDB runtime as total length
+              and seeks (native within buffer, reload-at-offset beyond it) */}
+          {videoSrc && !torrentError && (
+            <div
+              className={`absolute inset-x-0 bottom-0 z-20 flex flex-col gap-1 bg-linear-to-t from-black/80 to-transparent px-4 pb-3 pt-8 transition-opacity duration-300 ${
+                showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+              }`}
+            >
+              <input
+                type="range"
+                min={0}
+                max={totalDuration || 0}
+                value={scrubbing != null ? scrubbing : Math.min(displayTime, totalDuration || 0)}
+                step={1}
+                onChange={(e) => setScrubbing(Number(e.target.value))}
+                onMouseUp={(e) => {
+                  handleSeek(Number((e.target as HTMLInputElement).value));
+                  setScrubbing(null);
+                }}
+                onTouchEnd={(e) => {
+                  handleSeek(Number((e.target as HTMLInputElement).value));
+                  setScrubbing(null);
+                }}
+                onKeyUp={(e) => {
+                  handleSeek(Number((e.target as HTMLInputElement).value));
+                  setScrubbing(null);
+                }}
+                className="h-1 w-full cursor-pointer accent-primary"
+                aria-label="Seek"
+              />
+              <div className="flex items-center gap-3 text-white">
+                <button onClick={togglePlay} className="hover:text-primary" aria-label="Play/pause">
+                  {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                </button>
+                <button onClick={toggleMute} className="hover:text-primary" aria-label="Mute">
+                  {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                </button>
+                <span className="text-xs tabular-nums text-white/80">
+                  {formatTime(displayTime)} / {totalDuration ? formatTime(totalDuration) : "--:--"}
+                </span>
+                <div className="ml-auto">
+                  <button onClick={toggleFullscreen} className="hover:text-primary" aria-label="Fullscreen">
+                    {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+                  </button>
+                </div>
               </div>
             </div>
           )}
