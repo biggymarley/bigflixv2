@@ -36,6 +36,11 @@ export default function WatchPage() {
   const [showControls, setShowControls] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [source, setSource] = useState<"embed" | "torrent">("embed");
+  const [imdbId, setImdbId] = useState<string | null>(null);
+  const [quality, setQuality] = useState<"1080p" | "720p">("1080p");
+  const [torrentLoading, setTorrentLoading] = useState(false);
+  const [torrentError, setTorrentError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -54,6 +59,18 @@ export default function WatchPage() {
       .then((res) => res.json())
       .then(setDetails)
       .catch(() => {});
+  }, [id, type]);
+
+  // Torrent source needs an IMDB id; YTS is movies-only.
+  useEffect(() => {
+    if (type !== "movie") {
+      setImdbId(null);
+      return;
+    }
+    fetch(`/api/tmdb/movie/${id}/external_ids`)
+      .then((res) => res.json())
+      .then((data) => setImdbId(data.imdb_id || null))
+      .catch(() => setImdbId(null));
   }, [id, type]);
 
   useEffect(() => {
@@ -101,6 +118,22 @@ export default function WatchPage() {
     type === "tv"
       ? `${embedBase}/embed/tv/${id}/${season}/${episode}`
       : `${embedBase}/embed/movie/${id}`;
+
+  const torrentBase = process.env.NEXT_PUBLIC_TORRENT_BASE_URL;
+  const torrentToken = process.env.NEXT_PUBLIC_TORRENT_TOKEN;
+  // Torrent option is only offered for movies with a known IMDB id and a configured backend.
+  const torrentAvailable = Boolean(torrentBase && type === "movie" && imdbId);
+  const torrentUrl =
+    torrentAvailable
+      ? `${torrentBase}/stream?imdb=${imdbId}&q=${quality}&token=${torrentToken}`
+      : null;
+
+  // Reset playback state whenever the torrent stream URL changes.
+  useEffect(() => {
+    if (source !== "torrent") return;
+    setTorrentError(false);
+    setTorrentLoading(true);
+  }, [source, torrentUrl]);
 
   const title = details?.title || details?.name || "Loading...";
 
@@ -186,6 +219,45 @@ export default function WatchPage() {
         </div>
 
         <div className="flex items-center gap-1">
+          {torrentAvailable && (
+            <div className="mr-1 flex items-center gap-1">
+              {/* Source segmented toggle */}
+              <div className="flex items-center rounded-full border border-white/15 bg-white/5 p-0.5 text-xs">
+                <button
+                  onClick={() => setSource("embed")}
+                  className={`rounded-full px-2.5 py-1 font-medium transition-colors ${
+                    source === "embed" ? "bg-white/90 text-black" : "text-white/70 hover:text-white"
+                  }`}
+                >
+                  Server
+                </button>
+                <button
+                  onClick={() => setSource("torrent")}
+                  className={`rounded-full px-2.5 py-1 font-medium transition-colors ${
+                    source === "torrent" ? "bg-primary text-primary-foreground" : "text-white/70 hover:text-white"
+                  }`}
+                >
+                  Torrent
+                </button>
+              </div>
+              {/* Quality chips (torrent only) */}
+              {source === "torrent" && (
+                <div className="flex items-center rounded-full border border-white/15 bg-white/5 p-0.5 text-xs">
+                  {(["1080p", "720p"] as const).map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => setQuality(q)}
+                      className={`rounded-full px-2 py-1 font-medium transition-colors ${
+                        quality === q ? "bg-white/90 text-black" : "text-white/70 hover:text-white"
+                      }`}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {type === "tv" && details?.seasons && (
             <Button
               variant="ghost"
@@ -222,22 +294,77 @@ export default function WatchPage() {
         </div>
       </div>
 
-      {/* Video iframe */}
-      <iframe
-        src={embedUrl}
-        className="h-full w-full flex-1"
-        allowFullScreen
-        allow="autoplay; fullscreen; encrypted-media"
-        referrerPolicy="origin"
-      />
+      {/* Player: native <video> for torrent source, embed iframe otherwise */}
+      {source === "torrent" && torrentUrl ? (
+        <>
+          <video
+            key={torrentUrl}
+            src={torrentUrl}
+            className="h-full w-full flex-1 bg-black"
+            controls
+            autoPlay
+            playsInline
+            onWaiting={() => setTorrentLoading(true)}
+            onCanPlay={() => setTorrentLoading(false)}
+            onPlaying={() => setTorrentLoading(false)}
+            onError={() => {
+              setTorrentLoading(false);
+              setTorrentError(true);
+            }}
+          />
 
-      {/* Wake layer for iframe-heavy area: shows controls on interaction when hidden */}
-      <div
-        className={`absolute inset-0 z-10 ${showControls ? "pointer-events-none" : "pointer-events-auto"}`}
-        onMouseMove={handleInteraction}
-        onTouchStart={handleInteraction}
-        onTouchMove={handleInteraction}
-      />
+          {/* Buffering overlay (torrents take a moment to spin up the swarm) */}
+          {torrentLoading && !torrentError && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/60">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-primary" />
+              <p className="text-sm text-white/80">Connecting to the swarm…</p>
+              <p className="text-xs text-white/40">Torrents can take 5–30s to start</p>
+            </div>
+          )}
+
+          {/* Error overlay */}
+          {torrentError && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-black/80 px-6 text-center">
+              <p className="text-sm text-white/80">
+                Couldn&apos;t stream this title from torrent
+                {quality === "1080p" ? " — try 720p, or" : " —"} switch back to the server.
+              </p>
+              <div className="flex gap-2">
+                {quality === "1080p" && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setQuality("720p")}
+                  >
+                    Try 720p
+                  </Button>
+                )}
+                <Button variant="default" size="sm" onClick={() => setSource("embed")}>
+                  Use server
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <iframe
+            src={embedUrl}
+            className="h-full w-full flex-1"
+            allowFullScreen
+            allow="autoplay; fullscreen; encrypted-media"
+            referrerPolicy="origin"
+          />
+
+          {/* Wake layer for iframe-heavy area: shows controls on interaction when hidden */}
+          <div
+            className={`absolute inset-0 z-10 ${showControls ? "pointer-events-none" : "pointer-events-auto"}`}
+            onMouseMove={handleInteraction}
+            onTouchStart={handleInteraction}
+            onTouchMove={handleInteraction}
+          />
+        </>
+      )}
 
       {/* Next Episode button */}
       {nextEpisodeInfo && (
