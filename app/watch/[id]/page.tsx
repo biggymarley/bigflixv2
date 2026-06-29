@@ -66,6 +66,9 @@ export default function WatchPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const selectDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tearingDownRef = useRef(false);
+  // Infohash currently streaming from the box — so we can tell the box to stop
+  // it (sendBeacon) on tab close / source switch / unmount.
+  const playingHashRef = useRef<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [mediaDuration, setMediaDuration] = useState(0);
@@ -165,6 +168,20 @@ export default function WatchPage() {
     [torrentBase, torrentToken]
   );
 
+  // Tell the box to drop a stream + evict its torrent immediately. Uses
+  // sendBeacon so it still fires while the tab is being closed (a normal fetch
+  // gets cancelled). Without this the box only notices via its 60s watchdog, so
+  // closed viewers / abandoned torrents linger on /stats.
+  const stopBox = useCallback(
+    (hash: string | null) => {
+      if (!hash || !torrentBase) return;
+      try {
+        navigator.sendBeacon(`${torrentBase}/stop?hash=${hash}&token=${torrentToken}`);
+      } catch {}
+    },
+    [torrentBase, torrentToken]
+  );
+
   // Default auto-pick: prefer 1080p, then x264 (cheap to stream), then avoid
   // multi-movie packs (movies only), with the most seeders as the tiebreaker.
   const pickDefault = useCallback(
@@ -196,6 +213,10 @@ export default function WatchPage() {
       setSourcesOpen(false);
       if (selectDebounce.current) clearTimeout(selectDebounce.current);
       selectDebounce.current = setTimeout(() => {
+        // Stop the torrent we're leaving so it doesn't linger on the box.
+        if (playingHashRef.current && playingHashRef.current !== pick.hash) {
+          stopBox(playingHashRef.current);
+        }
         const v = videoRef.current;
         if (v) {
           tearingDownRef.current = true;
@@ -208,10 +229,11 @@ export default function WatchPage() {
         }
         setSeekOffset(0);
         setCurrentTime(0);
+        playingHashRef.current = pick.hash;
         setVideoSrc(buildTorrentUrl(pick));
       }, 350);
     },
-    [buildTorrentUrl]
+    [buildTorrentUrl, stopBox]
   );
 
   useEffect(() => () => {
@@ -246,9 +268,12 @@ export default function WatchPage() {
       const best = pickDefault(list);
       if (best) {
         setTorrentInfo(best);
+        playingHashRef.current = best.hash;
         setVideoSrc(buildTorrentUrl(best));
       } else if (type === "movie") {
-        // Torrentio unreachable → let the box try via YTS (movies only).
+        // Torrentio unreachable → let the box try via YTS (movies only). The box
+        // resolves the hash here, so we can't /stop it by hash.
+        playingHashRef.current = null;
         setVideoSrc(`${torrentBase}/stream?imdb=${imdbId}&q=1080p&token=${torrentToken}`);
       } else {
         // No torrent found for this episode and there's no TV fallback source.
@@ -260,14 +285,30 @@ export default function WatchPage() {
     return () => {
       cancelled = true;
       ctrl.abort();
+      // Switching title/episode (or unmounting): stop the box stream we were on.
+      stopBox(playingHashRef.current);
+      playingHashRef.current = null;
     };
-  }, [source, torrentAvailable, imdbId, type, season, episode, torrentBase, torrentToken, buildTorrentUrl, pickDefault]);
+  }, [source, torrentAvailable, imdbId, type, season, episode, torrentBase, torrentToken, buildTorrentUrl, pickDefault, stopBox]);
 
   // Leaving torrent mode (e.g. switch to Server) clears the stream so the
-  // teardown below fires and the box stops streaming.
+  // teardown below fires, and tells the box to drop the stream right away.
   useEffect(() => {
-    if (source !== "torrent") setVideoSrc(null);
-  }, [source]);
+    if (source !== "torrent") {
+      setVideoSrc(null);
+      stopBox(playingHashRef.current);
+      playingHashRef.current = null;
+    }
+  }, [source, stopBox]);
+
+  // Tab close / hard navigation: the <video> teardown can't run, so beacon the
+  // box to stop the current stream. pagehide is the reliable close/navigate
+  // signal (fires even when the tab is being killed).
+  useEffect(() => {
+    const onPageHide = () => stopBox(playingHashRef.current);
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+  }, [stopBox]);
 
   // One persistent <video> element: changing its src natively aborts the
   // previous stream (the browser's media load algorithm), so the box sees each
