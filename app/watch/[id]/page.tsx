@@ -218,6 +218,29 @@ export default function WatchPage() {
     };
   }, [source, torrentAvailable, imdbId, quality, type, season, episode, torrentBase, torrentToken, buildTorrentUrl]);
 
+  // Leaving torrent mode (e.g. switch to Server) clears the stream so the
+  // teardown below fires and the box stops streaming.
+  useEffect(() => {
+    if (source !== "torrent") setVideoSrc(null);
+  }, [source]);
+
+  // Force the browser to abort the in-flight stream when the <video> goes away
+  // (navigation / back button / src change). Removing the element from the DOM
+  // alone doesn't reliably cancel the request, so the box would keep streaming
+  // and transcoding — counting a phantom viewer. pause + clear src + load()
+  // makes the browser drop the connection, which the box sees as a disconnect.
+  useEffect(() => {
+    const v = videoRef.current;
+    return () => {
+      if (!v) return;
+      try {
+        v.pause();
+        v.removeAttribute("src");
+        v.load();
+      } catch {}
+    };
+  }, [videoSrc]);
+
   // True total length from TMDB (the fMP4 stream can't report it). Movies use
   // runtime; TV uses the episode runtime (falling back to the show average).
   const currentEpisodeRuntime =
