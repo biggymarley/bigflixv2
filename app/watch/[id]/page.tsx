@@ -10,6 +10,8 @@ import {
   ChevronDown,
   ChevronRight,
   LayoutList,
+  Layers,
+  Users,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useWatchLater } from "@/hooks/use-watch-later";
 import { useWatchHistory } from "@/hooks/use-watch-history";
 import type { Episode, MovieDetails } from "@/lib/types";
+import { listTorrents, type TorrentPick } from "@/lib/torrent";
 
 export default function WatchPage() {
   const params = useParams();
@@ -41,6 +44,10 @@ export default function WatchPage() {
   const [quality, setQuality] = useState<"1080p" | "720p">("1080p");
   const [torrentLoading, setTorrentLoading] = useState(false);
   const [torrentError, setTorrentError] = useState(false);
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [torrentInfo, setTorrentInfo] = useState<TorrentPick | null>(null);
+  const [torrentOptions, setTorrentOptions] = useState<TorrentPick[]>([]);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -123,17 +130,57 @@ export default function WatchPage() {
   const torrentToken = process.env.NEXT_PUBLIC_TORRENT_TOKEN;
   // Torrent option is only offered for movies with a known IMDB id and a configured backend.
   const torrentAvailable = Boolean(torrentBase && type === "movie" && imdbId);
-  const torrentUrl =
-    torrentAvailable
-      ? `${torrentBase}/stream?imdb=${imdbId}&q=${quality}&token=${torrentToken}`
-      : null;
+  // Seeder health colour: green = plenty, amber = thin, red = risky.
+  const seedColor = (n: number) =>
+    n >= 50 ? "text-green-400" : n >= 10 ? "text-amber-400" : "text-red-400";
 
-  // Reset playback state whenever the torrent stream URL changes.
+  const buildTorrentUrl = useCallback(
+    (pick: TorrentPick) =>
+      `${torrentBase}/stream?hash=${pick.hash}&fileIdx=${pick.fileIdx ?? ""}&codec=${pick.codec}&token=${torrentToken}`,
+    [torrentBase, torrentToken]
+  );
+
+  // Switch to a specific torrent (e.g. user picked another source).
+  const selectTorrent = useCallback(
+    (pick: TorrentPick) => {
+      setTorrentError(false);
+      setTorrentLoading(true);
+      setTorrentInfo(pick);
+      setVideoSrc(buildTorrentUrl(pick));
+      setSourcesOpen(false);
+    },
+    [buildTorrentUrl]
+  );
+
+  // Resolve candidates in the browser (residential IP → Torrentio works), then
+  // hand only the infohash to the box. Falls back to the box's own ?imdb=
+  // resolver (YTS) if Torrentio is unreachable from the client.
   useEffect(() => {
-    if (source !== "torrent") return;
+    if (source !== "torrent" || !torrentAvailable || !imdbId) return;
+    let cancelled = false;
     setTorrentError(false);
     setTorrentLoading(true);
-  }, [source, torrentUrl]);
+    setVideoSrc(null);
+    setTorrentInfo(null);
+    setTorrentOptions([]);
+
+    (async () => {
+      const list = await listTorrents(imdbId, quality);
+      if (cancelled) return;
+      setTorrentOptions(list);
+      if (list.length) {
+        setTorrentInfo(list[0]);
+        setVideoSrc(buildTorrentUrl(list[0]));
+      } else {
+        // Torrentio unreachable → let the box try via YTS.
+        setVideoSrc(`${torrentBase}/stream?imdb=${imdbId}&q=${quality}&token=${torrentToken}`);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [source, torrentAvailable, imdbId, quality, torrentBase, torrentToken, buildTorrentUrl]);
 
   const title = details?.title || details?.name || "Loading...";
 
@@ -256,6 +303,31 @@ export default function WatchPage() {
                   ))}
                 </div>
               )}
+              {/* Seeder health badge */}
+              {source === "torrent" && torrentInfo && (
+                <span
+                  className={`flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-1 text-xs font-semibold ${seedColor(
+                    torrentInfo.seeds
+                  )}`}
+                  title={`${torrentInfo.seeds} seeders · ${torrentInfo.quality} · ${torrentInfo.codec}`}
+                >
+                  <Users className="h-3 w-3" />
+                  {torrentInfo.seeds}
+                </span>
+              )}
+              {/* Source picker toggle */}
+              {source === "torrent" && torrentOptions.length > 1 && (
+                <button
+                  onClick={() => setSourcesOpen((o) => !o)}
+                  title="Choose a different torrent"
+                  className={`flex items-center gap-1 rounded-full border border-white/15 px-2 py-1 text-xs font-medium transition-colors ${
+                    sourcesOpen ? "bg-white/90 text-black" : "bg-white/5 text-white/70 hover:text-white"
+                  }`}
+                >
+                  <Layers className="h-3 w-3" />
+                  Sources
+                </button>
+              )}
             </div>
           )}
           {type === "tv" && details?.seasons && (
@@ -295,30 +367,43 @@ export default function WatchPage() {
       </div>
 
       {/* Player: native <video> for torrent source, embed iframe otherwise */}
-      {source === "torrent" && torrentUrl ? (
+      {source === "torrent" && torrentAvailable ? (
         <>
-          <video
-            key={torrentUrl}
-            src={torrentUrl}
-            className="h-full w-full flex-1 bg-black"
-            controls
-            autoPlay
-            playsInline
-            onWaiting={() => setTorrentLoading(true)}
-            onCanPlay={() => setTorrentLoading(false)}
-            onPlaying={() => setTorrentLoading(false)}
-            onError={() => {
-              setTorrentLoading(false);
-              setTorrentError(true);
-            }}
-          />
+          {videoSrc && (
+            <video
+              key={videoSrc}
+              src={videoSrc}
+              className="h-full w-full flex-1 bg-black"
+              controls
+              autoPlay
+              playsInline
+              onWaiting={() => setTorrentLoading(true)}
+              onCanPlay={() => setTorrentLoading(false)}
+              onPlaying={() => setTorrentLoading(false)}
+              onError={() => {
+                setTorrentLoading(false);
+                setTorrentError(true);
+                // Surface the picker so the user can try a different torrent.
+                if (torrentOptions.length > 1) setSourcesOpen(true);
+              }}
+            />
+          )}
 
-          {/* Buffering overlay (torrents take a moment to spin up the swarm) */}
-          {torrentLoading && !torrentError && (
+          {/* Buffering overlay (resolving the source, then spinning up the swarm) */}
+          {(torrentLoading || !videoSrc) && !torrentError && (
             <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/60">
               <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-primary" />
-              <p className="text-sm text-white/80">Connecting to the swarm…</p>
-              <p className="text-xs text-white/40">Torrents can take 5–30s to start</p>
+              <p className="text-sm text-white/80">
+                {!videoSrc ? "Finding the best source…" : "Connecting to the swarm…"}
+              </p>
+              {torrentInfo ? (
+                <p className={`flex items-center gap-1.5 text-xs font-medium ${seedColor(torrentInfo.seeds)}`}>
+                  <Users className="h-3 w-3" />
+                  {torrentInfo.seeds} seeders · {torrentInfo.quality} · {torrentInfo.codec}
+                </p>
+              ) : (
+                <p className="text-xs text-white/40">Torrents can take 5–30s to start</p>
+              )}
             </div>
           )}
 
@@ -326,10 +411,15 @@ export default function WatchPage() {
           {torrentError && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-black/80 px-6 text-center">
               <p className="text-sm text-white/80">
-                Couldn&apos;t stream this title from torrent
-                {quality === "1080p" ? " — try 720p, or" : " —"} switch back to the server.
+                This torrent wouldn&apos;t play. Try another source
+                {quality === "1080p" ? ", drop to 720p," : ""} or use the server.
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap justify-center gap-2">
+                {torrentOptions.length > 1 && (
+                  <Button variant="secondary" size="sm" onClick={() => setSourcesOpen(true)}>
+                    <Layers className="mr-1 h-4 w-4" /> Other sources
+                  </Button>
+                )}
                 {quality === "1080p" && (
                   <Button
                     variant="secondary"
@@ -342,6 +432,60 @@ export default function WatchPage() {
                 <Button variant="default" size="sm" onClick={() => setSource("embed")}>
                   Use server
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Sources picker — slide-in list of torrent candidates */}
+          {torrentOptions.length > 0 && (
+            <div
+              className={`absolute top-0 right-0 z-30 h-full w-80 max-w-[85vw] flex flex-col bg-black/95 backdrop-blur-sm border-l border-white/10 transition-transform duration-300 ease-in-out ${
+                sourcesOpen ? "translate-x-0" : "translate-x-full"
+              }`}
+            >
+              <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 pt-14">
+                <span className="text-sm font-semibold text-white">
+                  Sources <span className="text-white/40">({torrentOptions.length})</span>
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-white/60 hover:text-white hover:bg-white/10"
+                  onClick={() => setSourcesOpen(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+                {torrentOptions.map((opt) => {
+                  const active = torrentInfo?.hash === opt.hash;
+                  return (
+                    <button
+                      key={opt.hash}
+                      onClick={() => selectTorrent(opt)}
+                      className={`w-full rounded-lg px-3 py-2.5 text-left transition-colors ${
+                        active ? "bg-primary/20 ring-1 ring-primary/50" : "hover:bg-white/10"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 text-xs font-semibold">
+                        <span className="rounded bg-white/10 px-1.5 py-0.5 text-white/80 uppercase">
+                          {opt.quality}
+                        </span>
+                        <span className={opt.codec === "x264" ? "text-white/50" : "text-amber-400/80"}>
+                          {opt.codec}
+                        </span>
+                        <span className={`ml-auto flex items-center gap-1 ${seedColor(opt.seeds)}`}>
+                          <Users className="h-3 w-3" />
+                          {opt.seeds}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate text-[11px] text-white/50">
+                        {opt.size && <span className="text-white/40">{opt.size} · </span>}
+                        {opt.title || opt.provider}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
