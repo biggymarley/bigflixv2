@@ -70,10 +70,17 @@ export default function WatchPage() {
   // it (sendBeacon) on tab close / source switch / unmount.
   const playingHashRef = useRef<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Set when the browser blocks autoplay (no user gesture yet on this page) so
+  // we can surface a tap-to-play button instead of a silently-stuck player.
+  const [needsPlay, setNeedsPlay] = useState(false);
+  // Set when we had to fall back to *muted* autoplay (sound was blocked without a
+  // gesture) — so we can prompt the viewer to unmute.
+  const [showUnmute, setShowUnmute] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [mediaDuration, setMediaDuration] = useState(0);
   const [seekOffset, setSeekOffset] = useState(0);
   const [muted, setMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
   const [scrubbing, setScrubbing] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -337,7 +344,26 @@ export default function WatchPage() {
   // old connection close. Ensure the new src actually starts playing.
   useEffect(() => {
     const v = videoRef.current;
-    if (v && videoSrc) v.play().catch(() => {});
+    if (!v || !videoSrc) return;
+    v.play().then(
+      () => setNeedsPlay(false),
+      () => {
+        // Autoplay-with-sound denied (no user gesture yet on this page). Browsers
+        // refuse to even fetch the stream in this state, leaving the player stuck
+        // on "Connecting…". Retry MUTED — muted autoplay is always allowed — so
+        // the stream actually starts, then prompt the viewer to unmute.
+        v.muted = true;
+        setMuted(true);
+        v.play().then(
+          () => {
+            setNeedsPlay(false);
+            setShowUnmute(true);
+          },
+          // Even muted autoplay blocked — last resort: tap-to-play overlay.
+          () => setNeedsPlay(true)
+        );
+      }
+    );
   }, [videoSrc]);
 
   // Callback ref: fires with null exactly when the <video> is removed
@@ -385,6 +411,18 @@ export default function WatchPage() {
     if (!v) return;
     v.muted = !v.muted;
     setMuted(v.muted);
+    if (!v.muted) setShowUnmute(false);
+  }, []);
+
+  const handleVolume = useCallback((val: number) => {
+    const v = videoRef.current;
+    setVolume(val);
+    setMuted(val === 0);
+    if (v) {
+      v.volume = val;
+      v.muted = val === 0;
+    }
+    if (val > 0) setShowUnmute(false);
   }, []);
 
   // Seek within the buffered/seekable range natively; otherwise reload the
@@ -600,15 +638,23 @@ export default function WatchPage() {
       {/* Player: native <video> for torrent source, embed iframe otherwise */}
       {source === "torrent" && torrentAvailable ? (
         <>
-          {videoSrc && (
+          {/* ONE persistent <video>: kept mounted for the whole torrent session
+              and only its src changes. Re-mounting a fresh element per source
+              (the old `videoSrc && <video>`) raced with autoplay and left the box
+              request stuck; changing src on a live element is the path that always
+              worked (seek / reselect), so the auto-pick now uses it too. */}
+          {(
             <video
               ref={attachVideo}
-              src={videoSrc}
+              src={videoSrc || undefined}
               className="h-full w-full flex-1 bg-black"
               autoPlay
               playsInline
               onClick={togglePlay}
-              onPlay={() => setIsPlaying(true)}
+              onPlay={() => {
+                setIsPlaying(true);
+                setNeedsPlay(false);
+              }}
               onPause={() => setIsPlaying(false)}
               onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
               onDurationChange={(e) => setMediaDuration(e.currentTarget.duration)}
@@ -643,6 +689,32 @@ export default function WatchPage() {
                 <p className="text-xs text-white/40">Torrents can take 5–30s to start</p>
               )}
             </div>
+          )}
+
+          {/* Tap-to-play overlay — shown when autoplay was blocked (or the user
+              paused) so playback isn't silently stuck on a frozen frame. */}
+          {needsPlay && videoSrc && !torrentLoading && !torrentError && (
+            <button
+              onClick={togglePlay}
+              className="absolute inset-0 z-20 flex items-center justify-center bg-black/40"
+              aria-label="Play"
+            >
+              <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm transition-transform hover:scale-105">
+                <Play className="h-9 w-9 translate-x-0.5 text-white" fill="currentColor" />
+              </span>
+            </button>
+          )}
+
+          {/* Unmute prompt — shown when we had to start muted because autoplay
+              with sound was blocked. One tap restores sound. */}
+          {showUnmute && muted && videoSrc && !torrentError && (
+            <button
+              onClick={toggleMute}
+              className="absolute left-1/2 top-4 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/85"
+            >
+              <VolumeX className="h-4 w-4" />
+              Tap to unmute
+            </button>
           )}
 
           {/* Error overlay */}
@@ -698,13 +770,26 @@ export default function WatchPage() {
                 <button onClick={togglePlay} className="hover:text-primary" aria-label="Play/pause">
                   {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                 </button>
-                <button onClick={toggleMute} className="hover:text-primary" aria-label="Mute">
-                  {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                </button>
-                <span className="text-xs tabular-nums text-white/80">
-                  {formatTime(displayTime)} / {totalDuration ? formatTime(totalDuration) : "--:--"}
-                </span>
-                <div className="ml-auto">
+                {/* Volume: mute toggle + slider */}
+                <div className="group flex items-center gap-2">
+                  <button onClick={toggleMute} className="hover:text-primary" aria-label="Mute">
+                    {muted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                  </button>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={muted ? 0 : volume}
+                    onChange={(e) => handleVolume(Number(e.target.value))}
+                    className="h-1 w-20 cursor-pointer accent-primary"
+                    aria-label="Volume"
+                  />
+                </div>
+                <div className="ml-auto flex items-center gap-3">
+                  <span className="text-xs tabular-nums text-white/80">
+                    {formatTime(displayTime)} / {totalDuration ? formatTime(totalDuration) : "--:--"}
+                  </span>
                   <button onClick={toggleFullscreen} className="hover:text-primary" aria-label="Fullscreen">
                     {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
                   </button>
