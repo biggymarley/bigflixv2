@@ -182,21 +182,25 @@ export default function WatchPage() {
     [torrentBase, torrentToken]
   );
 
-  // Default auto-pick: prefer 1080p, then x264 (cheap to stream), then avoid
-  // multi-movie packs (movies only), with the most seeders as the tiebreaker.
+  // Default auto-pick: always the first 1080p with the most seeders. Quality is
+  // the only thing ranked above seeder count; among 1080p torrents the most
+  // seeded one wins outright. codec (x264 = cheap to stream) and pack avoidance
+  // (movies only) are just tiebreakers when seeder counts are equal. If there's
+  // no 1080p at all, falls through to the most-seeded torrent of any quality.
   const pickDefault = useCallback(
     (list: TorrentPick[]): TorrentPick | null => {
       if (!list.length) return null;
-      const rank = (p: TorrentPick) => [
-        p.quality === "1080p" ? 0 : 1,
-        p.codec === "x264" ? 0 : 1,
-        type === "movie" && p.fileIdx != null && p.fileIdx > 5 ? 1 : 0,
-      ];
       return [...list].sort((a, b) => {
-        const ra = rank(a);
-        const rb = rank(b);
-        for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return ra[i] - rb[i];
-        return b.seeds - a.seeds;
+        const qa = a.quality === "1080p" ? 0 : 1;
+        const qb = b.quality === "1080p" ? 0 : 1;
+        if (qa !== qb) return qa - qb;
+        if (b.seeds !== a.seeds) return b.seeds - a.seeds;
+        const ca = a.codec === "x264" ? 0 : 1;
+        const cb = b.codec === "x264" ? 0 : 1;
+        if (ca !== cb) return ca - cb;
+        const pa = type === "movie" && a.fileIdx != null && a.fileIdx > 5 ? 1 : 0;
+        const pb = type === "movie" && b.fileIdx != null && b.fileIdx > 5 ? 1 : 0;
+        return pa - pb;
       })[0];
     },
     [type]
